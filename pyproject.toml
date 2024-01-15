@@ -1,0 +1,36 @@
+[build-system]
+requires = ["hatchling==1.21.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "headgate"
+version = "0.1.0"
+description = "Ditch company water accounting: headgate deliveries, priority calls and assessments"
+requires-python = ">=3.12"
+dependencies = ["click==8.1.7"]
+
+[project.scripts]
+headgate = "headgate.cli.main:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/headgate"]
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "B", "C4", "UP", "SIM", "RET", "ARG", "N", "PT"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["ARG001"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_unreachable = true
+files = ["src", "tests"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+filterwarnings = ["error"]
