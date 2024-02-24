@@ -36,3 +36,22 @@ class PolicyError(HeadgateError):
     input was malformed. A policy failure means the input was well formed and
     the district will not do it.
     """
+
+
+class RatingError(HeadgateError):
+    """A gauge height could not be turned into a flow."""
+
+
+class HeadOutOfRangeError(RatingError):
+    """The staff was read outside the range the rating was built for.
+
+    This is not a malformed input. The number is real and somebody wrote it in
+    the book; it is the rating that has nothing to say about it, and the record
+    that comes out is an estimate rather than a measurement.
+    """
+
+    def __init__(self, head_feet: object, low: object, high: object) -> None:
+        super().__init__(f"head {head_feet} ft is outside the rated range {low} to {high} ft")
+        self.head_feet = head_feet
+        self.low = low
+        self.high = high
