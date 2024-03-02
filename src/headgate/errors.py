@@ -55,3 +55,17 @@ class HeadOutOfRangeError(RatingError):
         self.head_feet = head_feet
         self.low = low
         self.high = high
+
+
+class SubmergedFlowError(RatingError):
+    """The tailwater backed up far enough that the free flow rating is void.
+
+    A flume rated for free flow measures nothing once the downstream head gets
+    close to the upstream head. The reading is not wrong; the structure has
+    stopped being a measuring device until somebody pulls the boards.
+    """
+
+    def __init__(self, ratio: object, limit: object) -> None:
+        super().__init__(f"submergence {ratio} is past the free flow limit of {limit}")
+        self.ratio = ratio
+        self.limit = limit
