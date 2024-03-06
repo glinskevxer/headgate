@@ -13,7 +13,7 @@ evidence of anything.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date
 from decimal import Decimal
 from enum import Enum
@@ -46,6 +46,24 @@ class DeviceKind(Enum):
     @property
     def needs_a_crest_width(self) -> bool:
         return self in {DeviceKind.CIPOLLETTI_WEIR, DeviceKind.RECTANGULAR_WEIR}
+
+    @property
+    def needs_a_throat_width(self) -> bool:
+        return self in {
+            DeviceKind.PARSHALL_FLUME,
+            DeviceKind.CUTTHROAT_FLUME,
+            DeviceKind.SUBMERGED_ORIFICE,
+        }
+
+    @property
+    def needs_an_opening_height(self) -> bool:
+        return self is DeviceKind.SUBMERGED_ORIFICE
+
+    @property
+    def is_rated_on_a_staff(self) -> bool:
+        """A propeller meter totalises. Everything else is read off a staff."""
+
+        return self is not DeviceKind.PROPELLER_METER
 
 
 @dataclass(frozen=True, slots=True)
@@ -83,6 +101,9 @@ class Device:
     kind: DeviceKind
     installed: date
     crest_width_feet: Decimal | None = None
+    throat_width_feet: Decimal | None = None
+    opening_height_feet: Decimal | None = None
+    end_contractions: int = 0
     min_head_feet: Decimal = Decimal("0.05")
     max_head_feet: Decimal = Decimal("2.0")
     turnout: TurnoutCode | None = None
@@ -107,6 +128,18 @@ class Device:
             raise ValidationError(f"device {self.tag} is a weir with no crest width")
         if self.crest_width_feet is not None and self.crest_width_feet <= 0:
             raise ValidationError(f"device {self.tag} has a crest width of {self.crest_width_feet}")
+        if self.kind.needs_a_throat_width and self.throat_width_feet is None:
+            raise ValidationError(f"device {self.tag} is a {self.kind.value} with no throat width")
+        if self.throat_width_feet is not None and self.throat_width_feet <= 0:
+            raise ValidationError(
+                f"device {self.tag} has a throat width of {self.throat_width_feet}"
+            )
+        if self.kind.needs_an_opening_height and self.opening_height_feet is None:
+            raise ValidationError(f"device {self.tag} is an orifice with no opening height")
+        if self.end_contractions not in (0, 1, 2):
+            raise ValidationError(f"device {self.tag} claims {self.end_contractions} contractions")
+        if self.end_contractions and self.kind is not DeviceKind.RECTANGULAR_WEIR:
+            raise ValidationError(f"device {self.tag} is not a weir that can be contracted")
         if self.removed is not None and self.removed <= self.installed:
             raise ValidationError(f"device {self.tag} was removed before it was installed")
         for earlier, later in zip(self.calibrations, self.calibrations[1:], strict=False):
@@ -143,15 +176,4 @@ class Device:
 
     def with_calibration(self, calibration: Calibration) -> Device:
         ordered = tuple(sorted((*self.calibrations, calibration), key=lambda item: item.performed))
-        return Device(
-            tag=self.tag,
-            kind=self.kind,
-            installed=self.installed,
-            crest_width_feet=self.crest_width_feet,
-            min_head_feet=self.min_head_feet,
-            max_head_feet=self.max_head_feet,
-            turnout=self.turnout,
-            ditch=self.ditch,
-            removed=self.removed,
-            calibrations=ordered,
-        )
+        return replace(self, calibrations=ordered)

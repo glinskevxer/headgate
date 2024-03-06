@@ -60,6 +60,7 @@ def test_a_flume_does_not_need_a_crest_width() -> None:
         tag=DeviceTag("FLUME-MAIN"),
         kind=DeviceKind.PARSHALL_FLUME,
         installed=date(2011, 5, 1),
+        throat_width_feet=Decimal("4"),
         ditch=DitchCode("MAIN"),
     )
     assert flume.site == "MAIN"
@@ -78,6 +79,37 @@ def test_a_head_range_starting_at_zero_is_refused() -> None:
 def test_a_negative_crest_width_is_refused() -> None:
     with pytest.raises(ValidationError, match="crest width of"):
         weir(crest_width_feet=Decimal("-1"))
+
+
+def test_a_flume_needs_a_throat_width() -> None:
+    with pytest.raises(ValidationError, match="no throat width"):
+        Device(
+            tag=DeviceTag("FLUME-MAIN"),
+            kind=DeviceKind.CUTTHROAT_FLUME,
+            installed=date(2011, 5, 1),
+            ditch=DitchCode("MAIN"),
+        )
+
+
+def test_an_orifice_needs_an_opening_height() -> None:
+    with pytest.raises(ValidationError, match="no opening height"):
+        Device(
+            tag=DeviceTag("ORIFICE-L2-14"),
+            kind=DeviceKind.SUBMERGED_ORIFICE,
+            installed=date(2011, 5, 1),
+            throat_width_feet=Decimal("2"),
+            turnout=TurnoutCode("L2-14"),
+        )
+
+
+def test_only_a_rectangular_weir_can_be_contracted() -> None:
+    with pytest.raises(ValidationError, match="can be contracted"):
+        weir(end_contractions=2)
+
+
+def test_an_impossible_contraction_count_is_refused() -> None:
+    with pytest.raises(ValidationError, match="claims 3 contractions"):
+        weir(kind=DeviceKind.RECTANGULAR_WEIR, end_contractions=3)
 
 
 def test_a_device_removed_before_installation_is_refused() -> None:
