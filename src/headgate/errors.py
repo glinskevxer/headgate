@@ -69,3 +69,7 @@ class SubmergedFlowError(RatingError):
         super().__init__(f"submergence {ratio} is past the free flow limit of {limit}")
         self.ratio = ratio
         self.limit = limit
+
+
+class StoreError(HeadgateError):
+    """The book on disk could not be read or written."""
