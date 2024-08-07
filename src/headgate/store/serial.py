@@ -39,6 +39,12 @@ def text_decimal(text: object, column: str = "a decimal column") -> Decimal:
         raise StoreError(f"{column} holds {text!r}, which is not a number") from exc
 
 
+def optional_decimal_text(value: Decimal | None) -> str | None:
+    """Store a decimal that may not be there, without the caller branching."""
+
+    return None if value is None else decimal_text(value)
+
+
 def optional_decimal(text: object, column: str = "a decimal column") -> Decimal | None:
     if text is None:
         return None
@@ -58,6 +64,12 @@ def text_date(text: object, column: str = "a date column") -> date:
         raise StoreError(f"{column} holds {text!r}, which is not a date") from exc
 
 
+def optional_date_text(day: date | None) -> str | None:
+    """Store a date that may not be there."""
+
+    return None if day is None else date_text(day)
+
+
 def optional_date(text: object, column: str = "a date column") -> date | None:
     if text is None:
         return None
@@ -75,6 +87,12 @@ def text_instant(text: object, column: str = "a timestamp column") -> datetime:
         return datetime.fromisoformat(text)
     except ValueError as exc:
         raise StoreError(f"{column} holds {text!r}, which is not a timestamp") from exc
+
+
+def code_text(code: object | None) -> str | None:
+    """Store an identifier that may not be there, as the text it prints as."""
+
+    return None if code is None else str(code)
 
 
 def enum_text(value: Enum) -> str:

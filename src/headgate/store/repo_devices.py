@@ -16,12 +16,15 @@ from ..ids import DeviceTag, DitchCode, TurnoutCode
 from ..model.device import Calibration, Device, DeviceKind
 from .db import one, query, transaction
 from .serial import (
+    code_text,
     date_text,
     decimal_text,
     enum_text,
     int_value,
     optional_date,
+    optional_date_text,
     optional_decimal,
+    optional_decimal_text,
     text_date,
     text_decimal,
     text_enum,
@@ -100,21 +103,15 @@ def save_device(connection: sqlite3.Connection, device: Device) -> None:
                 str(device.tag),
                 enum_text(device.kind),
                 date_text(device.installed),
-                date_text(device.removed) if device.removed is not None else None,
-                decimal_text(device.crest_width_feet)
-                if device.crest_width_feet is not None
-                else None,
-                decimal_text(device.throat_width_feet)
-                if device.throat_width_feet is not None
-                else None,
-                decimal_text(device.opening_height_feet)
-                if device.opening_height_feet is not None
-                else None,
+                optional_date_text(device.removed),
+                optional_decimal_text(device.crest_width_feet),
+                optional_decimal_text(device.throat_width_feet),
+                optional_decimal_text(device.opening_height_feet),
                 device.end_contractions,
                 decimal_text(device.min_head_feet),
                 decimal_text(device.max_head_feet),
-                str(device.turnout) if device.turnout is not None else None,
-                str(device.ditch) if device.ditch is not None else None,
+                code_text(device.turnout),
+                code_text(device.ditch),
             ),
         )
         for calibration in device.calibrations:

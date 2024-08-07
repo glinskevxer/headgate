@@ -18,10 +18,10 @@ from ..model.reading import ReadingMethod, ReadingSeries, StaffReading
 from ..wateryear import Span
 from .db import query, scalar, transaction
 from .serial import (
-    decimal_text,
     enum_text,
     instant_text,
     optional_decimal,
+    optional_decimal_text,
     text_instant,
     text_value,
 )
@@ -56,11 +56,9 @@ def save_reading(connection: sqlite3.Connection, reading: StaffReading) -> None:
                     instant_text(reading.taken_at),
                     reading.observer,
                     enum_text(reading.method),
-                    decimal_text(reading.head_feet) if reading.head_feet is not None else None,
-                    decimal_text(reading.tail_feet) if reading.tail_feet is not None else None,
-                    decimal_text(reading.meter_total_af)
-                    if reading.meter_total_af is not None
-                    else None,
+                    optional_decimal_text(reading.head_feet),
+                    optional_decimal_text(reading.tail_feet),
+                    optional_decimal_text(reading.meter_total_af),
                     reading.note,
                 ),
             )

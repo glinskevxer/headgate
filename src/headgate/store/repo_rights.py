@@ -16,11 +16,13 @@ from ..ids import DecreeNumber, DitchCode
 from ..model.right import Priority, RightKind, RightStatus, WaterRight, order_by_priority
 from .db import one, query, transaction
 from .serial import (
+    code_text,
     date_text,
     decimal_text,
     enum_text,
     int_value,
     optional_decimal,
+    optional_decimal_text,
     text_date,
     text_decimal,
     text_enum,
@@ -77,9 +79,9 @@ def save_right(connection: sqlite3.Connection, right: WaterRight) -> None:
                 right.priority.adjudication_year,
                 right.priority.sequence,
                 decimal_text(right.diversion_mile),
-                decimal_text(right.rate_cfs) if right.rate_cfs is not None else None,
-                decimal_text(right.volume_af) if right.volume_af is not None else None,
-                str(right.ditch) if right.ditch is not None else None,
+                optional_decimal_text(right.rate_cfs),
+                optional_decimal_text(right.volume_af),
+                code_text(right.ditch),
                 enum_text(right.status),
             ),
         )

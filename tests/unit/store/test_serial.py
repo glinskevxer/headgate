@@ -5,7 +5,9 @@ from enum import Enum
 import pytest
 
 from headgate.errors import StoreError
+from headgate.ids import TurnoutCode
 from headgate.store.serial import (
+    code_text,
     date_text,
     decimal_text,
     enum_text,
@@ -15,7 +17,9 @@ from headgate.store.serial import (
     int_value,
     lines_text,
     optional_date,
+    optional_date_text,
     optional_decimal,
+    optional_decimal_text,
     text_date,
     text_decimal,
     text_enum,
@@ -56,6 +60,21 @@ def test_a_column_holding_the_wrong_type_says_which_column() -> None:
 def test_an_optional_decimal_passes_nothing_through() -> None:
     assert optional_decimal(None) is None
     assert optional_decimal("3") == Decimal("3")
+
+
+def test_writing_an_optional_decimal_passes_nothing_through() -> None:
+    assert optional_decimal_text(None) is None
+    assert optional_decimal_text(Decimal("3.50")) == "3.50"
+
+
+def test_writing_an_optional_date_passes_nothing_through() -> None:
+    assert optional_date_text(None) is None
+    assert optional_date_text(date(2025, 4, 15)) == "2025-04-15"
+
+
+def test_writing_an_identifier_uses_the_text_it_prints_as() -> None:
+    assert code_text(None) is None
+    assert code_text(TurnoutCode("L2-14")) == "L2-14"
 
 
 def test_dates_round_trip() -> None:

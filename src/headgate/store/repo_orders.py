@@ -22,6 +22,7 @@ from .serial import (
     instant_text,
     int_value,
     optional_decimal,
+    optional_decimal_text,
     text_decimal,
     text_enum,
     text_instant,
@@ -69,7 +70,7 @@ def save_order(connection: sqlite3.Connection, order: WaterOrder) -> None:
                 instant_text(order.span.end),
                 instant_text(order.placed_at),
                 enum_text(order.status),
-                decimal_text(order.allowed_cfs) if order.allowed_cfs is not None else None,
+                optional_decimal_text(order.allowed_cfs),
                 order.note,
             ),
         )

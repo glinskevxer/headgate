@@ -24,6 +24,7 @@ from .serial import (
     int_value,
     lines_text,
     optional_date,
+    optional_date_text,
     text_date,
     text_decimal,
     text_enum,
@@ -100,7 +101,7 @@ def save_certificate(connection: sqlite3.Connection, certificate: ShareCertifica
                 decimal_text(certificate.shares),
                 str(certificate.turnout),
                 date_text(certificate.issued),
-                date_text(certificate.retired) if certificate.retired is not None else None,
+                optional_date_text(certificate.retired),
             ),
         )
 
@@ -156,7 +157,7 @@ def save_parcel(connection: sqlite3.Connection, parcel: Parcel) -> None:
                 str(parcel.turnout),
                 decimal_text(parcel.irrigated_acres),
                 enum_text(parcel.crop),
-                date_text(parcel.dried_up_on) if parcel.dried_up_on is not None else None,
+                optional_date_text(parcel.dried_up_on),
             ),
         )
 

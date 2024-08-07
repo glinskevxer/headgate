@@ -17,8 +17,10 @@ from ..model.ditch import Ditch, DitchSystem, Turnout
 from ..model.stream import Reach, Stream
 from .db import query, transaction
 from .serial import (
+    code_text,
     decimal_text,
     optional_decimal,
+    optional_decimal_text,
     text_decimal,
     text_value,
 )
@@ -46,13 +48,9 @@ def save_system(connection: sqlite3.Connection, system: DitchSystem) -> None:
                     decimal_text(ditch.capacity_cfs),
                     decimal_text(ditch.length_feet),
                     decimal_text(ditch.loss_fraction_per_mile),
-                    str(ditch.parent) if ditch.parent is not None else None,
-                    decimal_text(ditch.offtake_station_feet)
-                    if ditch.offtake_station_feet is not None
-                    else None,
-                    decimal_text(ditch.diversion_mile)
-                    if ditch.diversion_mile is not None
-                    else None,
+                    code_text(ditch.parent),
+                    optional_decimal_text(ditch.offtake_station_feet),
+                    optional_decimal_text(ditch.diversion_mile),
                 ),
             )
             for turnout in ditch.turnouts:
