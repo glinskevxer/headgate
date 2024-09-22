@@ -17,6 +17,7 @@ from ..store.migrations import current_version, describe, migrate, pending
 from ..units import MinersInchStandard
 from . import orders as order_commands
 from . import reports as report_commands
+from . import setup as setup_commands
 from .context import DEFAULT_BOOK, Context, district_name
 
 STANDARD_NAMES = [item.name.lower() for item in MinersInchStandard]
@@ -105,6 +106,7 @@ def status(context: Context) -> None:
 
 order_commands.register(main)
 report_commands.register(main)
+setup_commands.register_commands(main)
 
 
 def run() -> int:
