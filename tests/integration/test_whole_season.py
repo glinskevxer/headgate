@@ -286,19 +286,25 @@ def build_district(book: Path) -> None:
 
 
 def readings_file(path: Path, lapsed_weir: bool = False) -> Path:
+    """A season of readings, one trip every ten days, running off as it goes."""
+
     rows = ["device,taken_at,observer,head,note"]
     start = datetime(2025, 4, 15, 6)
-    heads = {
-        "WEIR-MAIN-3": ["0.90", "0.85", "0.80", "0.70", "0.60", "0.55"],
-        "WEIR-L2-14": ["0.62", "0.60", "0.58", "0.50", "0.44", "0.40"],
-        "WEIR-L2-20": ["0.40", "0.38", "0.36", "0.30", "0.26", "0.22"],
-        "FLUME-MAIN": ["1.60", "1.50", "1.40", "1.20", "1.00", "0.90"],
+    peaks = {
+        "WEIR-MAIN-3": Decimal("0.95"),
+        "WEIR-L2-14": Decimal("0.64"),
+        "WEIR-L2-20": Decimal("0.42"),
+        "FLUME-MAIN": Decimal("1.65"),
     }
-    for tag, series in heads.items():
-        for index, head in enumerate(series):
-            when = start + timedelta(days=index * 28)
-            if lapsed_weir and tag == "WEIR-L2-14" and index > 2:
+    trips = 17
+    for tag, peak in peaks.items():
+        for index in range(trips):
+            when = start + timedelta(days=index * 10)
+            if lapsed_weir and tag == "WEIR-L2-14" and index > 5:
                 continue
+            head = (peak * (Decimal("1") - Decimal(index) / Decimal("40"))).quantize(
+                Decimal("0.01")
+            )
             rows.append(f"{tag},{when:%Y-%m-%dT%H:%M},D. Yardley,{head},")
     path.write_text("\n".join(rows) + "\n", encoding="utf-8")
     return path
@@ -432,9 +438,9 @@ def test_a_turnout_nobody_read_after_june_leaves_a_hole(tmp_path: Path) -> None:
     lower = ledger.for_turnout(LOWER)
     bench = ledger.for_turnout(BENCH)
     assert lower.provenance is Provenance.VOID
-    assert lower.unaccounted_hours == bench.unaccounted_hours
+    assert lower.unaccounted_hours > bench.unaccounted_hours
+    assert lower.unaccounted_hours > Decimal("1000")
     assert lower.total_af > Decimal("0")
-    assert lower.total_af < bench.total_af
 
 
 def test_the_bills_add_up_to_what_the_run_says(district: Path) -> None:

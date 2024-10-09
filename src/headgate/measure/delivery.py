@@ -22,7 +22,7 @@ from ..model.device import Device
 from ..model.reading import ReadingSeries
 from ..units import round_volume
 from ..wateryear import Span
-from .integrate import IntegratedVolume, Integration, integrate
+from .integrate import DEFAULT_STALE_AFTER_HOURS, IntegratedVolume, Integration, integrate
 from .quality import Provenance, worst_of
 
 
@@ -69,6 +69,7 @@ def record_for(
     series: ReadingSeries,
     span: Span,
     method: Integration = Integration.STEP,
+    stale_after_hours: Decimal | None = DEFAULT_STALE_AFTER_HOURS,
 ) -> DeliveryRecord:
     """Build the record for one turnout from the device that measures it."""
 
@@ -77,7 +78,9 @@ def record_for(
     if series.device != device.tag:
         raise PolicyError(f"the series for {series.device} is not for device {device.tag}")
     return DeliveryRecord(
-        turnout=turnout, device=device.tag, volume=integrate(device, series, span, method)
+        turnout=turnout,
+        device=device.tag,
+        volume=integrate(device, series, span, method, stale_after_hours),
     )
 
 

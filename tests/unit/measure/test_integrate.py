@@ -1,6 +1,9 @@
 from datetime import date, datetime
 from decimal import Decimal
 
+import pytest
+
+from headgate.errors import ValidationError
 from headgate.ids import DeviceTag, TurnoutCode
 from headgate.measure.integrate import Integration, integrate
 from headgate.measure.quality import Provenance
@@ -141,3 +144,44 @@ def test_segments_cover_the_span_exactly() -> None:
     volume = integrate(device(), series, span(1, 4))
     covered = sum((piece.span.seconds for piece in volume.segments), Decimal("0"))
     assert covered == span(1, 4).seconds
+
+
+def test_a_reading_stops_counting_once_it_is_stale() -> None:
+    series = ReadingSeries(WEIR, (reading(1, "0.50"),))
+    long_span = Span(datetime(2024, 6, 1, 6), datetime(2024, 7, 30, 6))
+    volume = integrate(device(), series, long_span, stale_after_hours=Decimal("336"))
+    assert volume.provenance is Provenance.VOID
+    assert volume.unaccounted_seconds > Decimal("0")
+    assert volume.total_af > Decimal("0")
+
+
+def test_the_stale_piece_says_how_long_nobody_looked() -> None:
+    series = ReadingSeries(WEIR, (reading(1, "0.50"),))
+    long_span = Span(datetime(2024, 6, 1, 6), datetime(2024, 7, 30, 6))
+    volume = integrate(device(), series, long_span, stale_after_hours=Decimal("336"))
+    assert "nobody read the device for 14.0 days" in volume.segments[-1].reason
+
+
+def test_a_reading_inside_the_limit_still_counts_all_the_way() -> None:
+    series = ReadingSeries(WEIR, (reading(1, "0.50"),))
+    volume = integrate(device(), series, span(1, 3), stale_after_hours=Decimal("336"))
+    assert volume.provenance is Provenance.MEASURED
+    assert len(volume.segments) == 1
+
+
+def test_the_staleness_rule_can_be_turned_off() -> None:
+    series = ReadingSeries(WEIR, (reading(1, "0.50"),))
+    long_span = Span(datetime(2024, 6, 1, 6), datetime(2024, 7, 30, 6))
+    volume = integrate(device(), series, long_span, stale_after_hours=None)
+    assert volume.provenance is Provenance.MEASURED
+
+
+def test_a_staleness_limit_of_nothing_is_refused() -> None:
+    series = ReadingSeries(WEIR, (reading(1, "0.50"),))
+    with pytest.raises(ValidationError, match="voids every reading"):
+        integrate(device(), series, span(1, 3), stale_after_hours=Decimal("0"))
+
+
+def test_a_void_segment_is_not_split_again() -> None:
+    volume = integrate(device(), ReadingSeries(WEIR), span(1, 30))
+    assert len(volume.segments) == 1

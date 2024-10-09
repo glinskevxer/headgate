@@ -17,7 +17,13 @@ from decimal import Decimal
 from ..errors import NotFoundError, PolicyError
 from ..ids import DeviceTag, DitchCode, TurnoutCode
 from ..measure.delivery import DeliveryLedger, DeliveryRecord, record_for
-from ..measure.integrate import IntegratedVolume, Integration, VolumeSegment, integrate
+from ..measure.integrate import (
+    DEFAULT_STALE_AFTER_HOURS,
+    IntegratedVolume,
+    Integration,
+    VolumeSegment,
+    integrate,
+)
 from ..measure.quality import Provenance
 from ..model.reading import ReadingSeries
 from ..wateryear import Span
@@ -41,6 +47,7 @@ def build_ledger(
     connection: sqlite3.Connection,
     span: Span,
     method: Integration = Integration.STEP,
+    stale_after_hours: Decimal | None = DEFAULT_STALE_AFTER_HOURS,
 ) -> DeliveryLedger:
     """One record for every turnout on the system over a span."""
 
@@ -53,7 +60,7 @@ def build_ledger(
             records.append(_nothing_measured(turnout.code, span, "no device was in the turnout"))
             continue
         series = load_series_within(connection, device.tag, span)
-        records.append(record_for(turnout.code, device, series, span, method))
+        records.append(record_for(turnout.code, device, series, span, method, stale_after_hours))
     return DeliveryLedger(span=span, records=tuple(records))
 
 
