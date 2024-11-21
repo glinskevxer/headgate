@@ -19,7 +19,7 @@ from decimal import Decimal
 from ..errors import ValidationError
 from ..ids import DecreeNumber
 from ..model.right import RightKind, WaterRight, order_by_priority
-from ..units import round_rate
+from ..units import round_rate, total_rate
 
 
 @dataclass(frozen=True, slots=True)
@@ -48,7 +48,7 @@ class Distribution:
 
     @property
     def total_allocated_cfs(self) -> Decimal:
-        return round_rate(sum((item.allocated_cfs for item in self.allocations), Decimal("0")))
+        return total_rate(item.allocated_cfs for item in self.allocations)
 
     @property
     def unallocated_cfs(self) -> Decimal:

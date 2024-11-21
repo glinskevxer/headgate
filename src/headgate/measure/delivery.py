@@ -20,7 +20,7 @@ from ..errors import PolicyError, ValidationError
 from ..ids import DeviceTag, TurnoutCode
 from ..model.device import Device
 from ..model.reading import ReadingSeries
-from ..units import round_volume
+from ..units import round_volume, total_volume
 from ..wateryear import Span
 from .integrate import DEFAULT_STALE_AFTER_HOURS, IntegratedVolume, Integration, integrate
 from .quality import Provenance, worst_of
@@ -104,11 +104,11 @@ class DeliveryLedger:
 
     @property
     def total_af(self) -> Decimal:
-        return round_volume(sum((item.total_af for item in self.records), Decimal("0")))
+        return total_volume(item.total_af for item in self.records)
 
     @property
     def measured_af(self) -> Decimal:
-        return round_volume(sum((item.measured_af for item in self.records), Decimal("0")))
+        return total_volume(item.measured_af for item in self.records)
 
     @property
     def estimated_af(self) -> Decimal:

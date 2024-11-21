@@ -26,7 +26,7 @@ from enum import Enum
 from ..errors import PolicyError, ValidationError
 from ..ids import TurnoutCode
 from ..model.order import WaterOrder
-from ..units import round_rate
+from ..units import round_rate, total_rate
 
 DEFAULT_MINIMUM_HEAD_CFS = Decimal("0.5")
 
@@ -69,11 +69,11 @@ class DayAllocation:
 
     @property
     def running_cfs(self) -> Decimal:
-        return round_rate(sum((item.running_cfs for item in self.cuts), Decimal("0")))
+        return total_rate(item.running_cfs for item in self.cuts)
 
     @property
     def answered_cfs(self) -> Decimal:
-        return round_rate(sum((item.answered_cfs for item in self.cuts), Decimal("0")))
+        return total_rate(item.answered_cfs for item in self.cuts)
 
     @property
     def is_short(self) -> bool:

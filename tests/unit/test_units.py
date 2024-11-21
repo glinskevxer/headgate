@@ -17,6 +17,8 @@ from headgate.units import (
     miners_inches_to_cfs,
     round_rate,
     round_volume,
+    total_rate,
+    total_volume,
 )
 
 
@@ -102,6 +104,17 @@ def test_a_negative_pump_rate_is_refused() -> None:
 
 def test_applied_depth_is_reported_in_inches() -> None:
     assert depth_over_acres(Decimal("10"), Decimal("40")) == Decimal("3.00")
+
+
+def test_volumes_add_up_and_round_once() -> None:
+    values = [Decimal("1.00005"), Decimal("1.00005")]
+    assert total_volume(values) == Decimal("2.0001")
+    assert total_volume([]) == Decimal("0.0000")
+
+
+def test_rates_add_up_and_round_once() -> None:
+    assert total_rate([Decimal("1.2345"), Decimal("1.2345")]) == Decimal("2.469")
+    assert total_rate([]) == Decimal("0.000")
 
 
 def test_applied_depth_needs_acres() -> None:

@@ -30,7 +30,7 @@ from ..errors import PolicyError, ValidationError
 from ..ids import DecreeNumber
 from ..model.right import WaterRight, juniors_to
 from ..model.stream import Stream
-from ..units import round_rate
+from ..units import round_rate, total_rate
 from .travel import arrival_of, carried
 
 FUTILE_DELIVERY_FRACTION = Decimal("0.5")
@@ -88,11 +88,11 @@ class CallDecision:
 
     @property
     def curtailed_cfs(self) -> Decimal:
-        return round_rate(sum((item.curtailed_cfs for item in self.curtailments), Decimal("0")))
+        return total_rate(item.curtailed_cfs for item in self.curtailments)
 
     @property
     def delivered_cfs(self) -> Decimal:
-        return round_rate(sum((item.delivered_cfs for item in self.curtailments), Decimal("0")))
+        return total_rate(item.delivered_cfs for item in self.curtailments)
 
     @property
     def remaining_shortfall_cfs(self) -> Decimal:

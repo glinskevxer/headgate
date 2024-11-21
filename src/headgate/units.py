@@ -12,6 +12,7 @@ statute the ditch sits under.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from decimal import ROUND_HALF_UP, Decimal
 from enum import Enum
 
@@ -56,6 +57,18 @@ def round_rate(cfs: Decimal) -> Decimal:
     """Round a rate to the three places a staff gauge can justify."""
 
     return cfs.quantize(RATE_PLACES, rounding=ROUND_HALF_UP)
+
+
+def total_volume(values: Iterable[Decimal]) -> Decimal:
+    """Add volumes up and round the answer once, at the end."""
+
+    return round_volume(sum(values, Decimal("0")))
+
+
+def total_rate(values: Iterable[Decimal]) -> Decimal:
+    """Add rates up and round the answer once, at the end."""
+
+    return round_rate(sum(values, Decimal("0")))
 
 
 def check_rate(cfs: Decimal) -> Decimal:

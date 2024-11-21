@@ -24,7 +24,7 @@ from decimal import Decimal
 
 from ..errors import NotFoundError, PolicyError, ValidationError
 from ..ids import AccountNumber
-from ..units import round_volume
+from ..units import round_volume, total_volume
 
 
 @dataclass(frozen=True, slots=True)
@@ -76,11 +76,11 @@ class StorageBook:
 
     @property
     def total_balance_af(self) -> Decimal:
-        return round_volume(sum((entry.balance_af for entry in self.entries), Decimal("0")))
+        return total_volume(entry.balance_af for entry in self.entries)
 
     @property
     def total_allocated_af(self) -> Decimal:
-        return round_volume(sum((entry.allocated_af for entry in self.entries), Decimal("0")))
+        return total_volume(entry.allocated_af for entry in self.entries)
 
     @property
     def accounts(self) -> tuple[AccountNumber, ...]:

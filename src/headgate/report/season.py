@@ -20,7 +20,7 @@ from ..errors import PolicyError
 from ..ids import TurnoutCode
 from ..measure.delivery import DeliveryLedger
 from ..model.ditch import DitchSystem
-from ..units import round_volume
+from ..units import round_volume, total_volume
 
 
 @dataclass(frozen=True, slots=True)
@@ -55,15 +55,15 @@ class SeasonReport:
 
     @property
     def delivered_af(self) -> Decimal:
-        return round_volume(sum((line.delivered_af for line in self.lines), Decimal("0")))
+        return total_volume(line.delivered_af for line in self.lines)
 
     @property
     def measured_af(self) -> Decimal:
-        return round_volume(sum((line.measured_af for line in self.lines), Decimal("0")))
+        return total_volume(line.measured_af for line in self.lines)
 
     @property
     def estimated_af(self) -> Decimal:
-        return round_volume(sum((line.estimated_af for line in self.lines), Decimal("0")))
+        return total_volume(line.estimated_af for line in self.lines)
 
     @property
     def loss_af(self) -> Decimal:

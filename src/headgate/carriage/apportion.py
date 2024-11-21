@@ -26,7 +26,7 @@ from enum import Enum
 from ..errors import PolicyError, ValidationError
 from ..ids import TurnoutCode
 from ..model.ditch import DitchSystem
-from ..units import round_volume
+from ..units import round_volume, total_volume
 from .loss import carriage_for, carried_fraction
 
 
@@ -68,11 +68,11 @@ class Apportionment:
 
     @property
     def total_loss_af(self) -> Decimal:
-        return round_volume(sum((item.loss_af for item in self.charges), Decimal("0")))
+        return total_volume(item.loss_af for item in self.charges)
 
     @property
     def total_delivered_af(self) -> Decimal:
-        return round_volume(sum((item.delivered_af for item in self.charges), Decimal("0")))
+        return total_volume(item.delivered_af for item in self.charges)
 
     def for_turnout(self, turnout: TurnoutCode) -> Charge:
         for item in self.charges:
