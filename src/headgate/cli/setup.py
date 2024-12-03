@@ -16,16 +16,20 @@ from decimal import Decimal
 
 import click
 
+from ..assessment.payment import Payment, PaymentMethod
 from ..errors import NotFoundError, PolicyError
 from ..ids import AccountNumber, DitchCode, TurnoutCode
 from ..model.account import Account, AccountStatus, ShareCertificate
 from ..model.ditch import Ditch, DitchSystem, Turnout
+from ..money import Money
 from ..store.repo_accounts import (
+    load_account,
     load_register,
     save_account,
     save_certificate,
 )
 from ..store.repo_ditch import load_system, save_system
+from ..store.repo_payments import account_ledger, take_payment
 from ..store.repo_season import declare_season
 from ..wateryear import IrrigationSeason, parse_day
 from .context import Context
@@ -207,6 +211,46 @@ def issue_certificate(
         click.echo(
             f"certificate {certificate.serial} issued to {certificate.account} for "
             f"{certificate.shares} shares at {certificate.turnout}"
+        )
+
+
+@account.command("pay")
+@click.option("--account", "account_number", required=True, help="Who paid.")
+@click.option("--amount", required=True, help="How much, in dollars.")
+@click.option("--on", "received_on", required=True, help="The day it came in.")
+@click.option(
+    "--method",
+    type=click.Choice([item.value for item in PaymentMethod]),
+    default="cheque",
+    show_default=True,
+    help="How it arrived.",
+)
+@click.option("--reference", default="", help="Cheque number or anything like it.")
+@click.pass_obj
+def take(
+    context: Context,
+    account_number: str,
+    amount: str,
+    received_on: str,
+    method: str,
+    reference: str,
+) -> None:
+    """Take a payment against an account."""
+
+    payment = Payment(
+        account=AccountNumber.parse(account_number),
+        received_on=parse_day(received_on),
+        amount=Money.parse(amount),
+        method=PaymentMethod(method),
+        reference=reference,
+    )
+    with context.open_current() as connection:
+        load_account(connection, payment.account)
+        number = take_payment(connection, payment)
+        ledger = account_ledger(connection, payment.account)
+        click.echo(
+            f"payment {number} of {payment.amount} taken, account {payment.account} owes "
+            f"{ledger.balance}"
         )
 
 

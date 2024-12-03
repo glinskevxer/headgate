@@ -343,3 +343,49 @@ def test_declaring_the_same_season_twice_is_refused(book: Path) -> None:
     )
     assert code != 0
     assert "already been declared" in output
+
+
+def test_a_payment_is_taken_against_an_account(book: Path) -> None:
+    run(
+        book,
+        ["account", "add", "--number", "118", "--name", "Alma Peterson", "--joined", "1994-03-01"],
+    )
+    code, output = run(
+        book,
+        [
+            "account",
+            "pay",
+            "--account",
+            "118",
+            "--amount",
+            "90.00",
+            "--on",
+            "2025-11-20",
+            "--reference",
+            "cheque 1184",
+        ],
+    )
+    assert code == 0
+    assert "payment 1 of $90.00 taken" in output
+    assert "-$90.00" in output
+
+
+def test_a_payment_from_an_account_that_is_not_there_is_refused(book: Path) -> None:
+    code, output = run(
+        book,
+        ["account", "pay", "--account", "999", "--amount", "90.00", "--on", "2025-11-20"],
+    )
+    assert code != 0
+    assert "no account" in output
+
+
+def test_a_payment_of_nothing_is_refused(book: Path) -> None:
+    run(
+        book,
+        ["account", "add", "--number", "118", "--name", "Alma Peterson", "--joined", "1994-03-01"],
+    )
+    code, output = run(
+        book, ["account", "pay", "--account", "118", "--amount", "0", "--on", "2025-11-20"]
+    )
+    assert code != 0
+    assert "not a payment" in output
