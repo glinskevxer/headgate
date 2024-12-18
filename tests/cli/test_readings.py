@@ -1,79 +1,15 @@
-from datetime import date
-from decimal import Decimal
 from pathlib import Path
 
 import pytest
-from click.testing import CliRunner
 
-from headgate.cli.main import main
 from headgate.cli.readings import read_rows
 from headgate.errors import PolicyError, ValidationError
-from headgate.ids import DeviceTag, DitchCode, TurnoutCode
-from headgate.model.device import Calibration, Device, DeviceKind
-from headgate.model.ditch import Ditch, DitchSystem, Turnout
-from headgate.store.db import Database
-from headgate.store.repo_devices import save_device
-from headgate.store.repo_ditch import save_system
-
-TURNOUT = TurnoutCode("L2-14")
-WEIR = DeviceTag("WEIR-L2-14")
+from tests.support.district import cipolletti, init_book, lateral, run, stock
 
 
 @pytest.fixture
 def book(tmp_path: Path) -> Path:
-    path = tmp_path / "district.sqlite3"
-    CliRunner().invoke(
-        main,
-        [
-            "--book",
-            str(path),
-            "init",
-            "--name",
-            "Sanpete",
-            "--state",
-            "ut",
-            "--stream",
-            "Sanpete Creek",
-        ],
-    )
-    with Database(path).open() as connection:
-        save_system(
-            connection,
-            DitchSystem(
-                ditches=(
-                    Ditch(
-                        code=DitchCode("L2"),
-                        name="Second Lateral",
-                        capacity_cfs=Decimal("12"),
-                        length_feet=Decimal("10560"),
-                        loss_fraction_per_mile=Decimal("0.05"),
-                        turnouts=(
-                            Turnout(
-                                TURNOUT, "Lower gate", Decimal("5280"), Decimal("6"), Decimal("40")
-                            ),
-                        ),
-                        diversion_mile=Decimal("28.4"),
-                    ),
-                )
-            ),
-        )
-        save_device(
-            connection,
-            Device(
-                tag=WEIR,
-                kind=DeviceKind.CIPOLLETTI_WEIR,
-                installed=date(2016, 3, 1),
-                crest_width_feet=Decimal("3"),
-                turnout=TURNOUT,
-                calibrations=(Calibration(date(2025, 4, 1), "R. Aldrich", date(2026, 4, 1)),),
-            ),
-        )
-    return path
-
-
-def run(book: Path, arguments: list[str]) -> tuple[int, str]:
-    result = CliRunner().invoke(main, ["--book", str(book), *arguments])
-    return result.exit_code, result.output
+    return stock(init_book(tmp_path / "district.sqlite3"), lateral(), devices=(cipolletti(),))
 
 
 def csv_file(tmp_path: Path, body: str, header: str = "device,taken_at,observer,head,note") -> Path:

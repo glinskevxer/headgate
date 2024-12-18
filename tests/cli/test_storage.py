@@ -3,60 +3,24 @@ from decimal import Decimal
 from pathlib import Path
 
 import pytest
-from click.testing import CliRunner
 
-from headgate.cli.main import main
-from headgate.ids import AccountNumber, DecreeNumber, TurnoutCode
-from headgate.model.account import Account, AccountStatus, ShareCertificate, ShareRegister
-from headgate.model.ditch import Ditch, DitchSystem, Turnout
+from headgate.ids import DecreeNumber
 from headgate.model.right import Priority, RightKind, WaterRight
 from headgate.store.db import Database
-from headgate.store.repo_accounts import save_register
-from headgate.store.repo_ditch import save_system
 from headgate.store.repo_rights import save_right
+from tests.support.district import init_book, lateral, run, shareholders, stock
 
-TURNOUT = TurnoutCode("L2-14")
 DECREE = DecreeNumber("CDA-1920-40")
 
 
 @pytest.fixture
 def district(tmp_path: Path) -> Path:
-    book = tmp_path / "district.sqlite3"
-    CliRunner().invoke(
-        main,
-        [
-            "--book",
-            str(book),
-            "init",
-            "--name",
-            "Sanpete",
-            "--state",
-            "ut",
-            "--stream",
-            "Sanpete Creek",
-        ],
+    book = stock(
+        init_book(tmp_path / "district.sqlite3"),
+        lateral(),
+        shareholders("30", "10"),
     )
     with Database(book).open() as connection:
-        save_system(
-            connection,
-            DitchSystem(
-                ditches=(
-                    Ditch(
-                        code=__import__("headgate.ids", fromlist=["DitchCode"]).DitchCode("L2"),
-                        name="Second Lateral",
-                        capacity_cfs=Decimal("12"),
-                        length_feet=Decimal("10560"),
-                        loss_fraction_per_mile=Decimal("0.05"),
-                        turnouts=(
-                            Turnout(
-                                TURNOUT, "Lower gate", Decimal("5280"), Decimal("6"), Decimal("40")
-                            ),
-                        ),
-                        diversion_mile=Decimal("28.4"),
-                    ),
-                )
-            ),
-        )
         save_right(
             connection,
             WaterRight(
@@ -68,33 +32,7 @@ def district(tmp_path: Path) -> Path:
                 volume_af=Decimal("4000"),
             ),
         )
-        save_register(
-            connection,
-            ShareRegister(
-                accounts=(
-                    Account(
-                        AccountNumber(118), "Alma Peterson", date(1994, 3, 1), AccountStatus.ACTIVE
-                    ),
-                    Account(
-                        AccountNumber(212), "Ruth Larsen", date(1998, 5, 1), AccountStatus.ACTIVE
-                    ),
-                ),
-                certificates=(
-                    ShareCertificate(
-                        "A-1001", AccountNumber(118), Decimal("30"), TURNOUT, date(2005, 4, 1)
-                    ),
-                    ShareCertificate(
-                        "A-1002", AccountNumber(212), Decimal("10"), TURNOUT, date(2005, 4, 1)
-                    ),
-                ),
-            ),
-        )
     return book
-
-
-def run(book: Path, arguments: list[str]) -> tuple[int, str]:
-    result = CliRunner().invoke(main, ["--book", str(book), *arguments])
-    return result.exit_code, result.output
 
 
 def build(book: Path) -> tuple[int, str]:
