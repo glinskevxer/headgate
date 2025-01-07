@@ -10,6 +10,8 @@ once.
 from __future__ import annotations
 
 import sqlite3
+from collections.abc import Iterator
+from contextlib import contextmanager
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
@@ -126,3 +128,21 @@ def stock(
         for device in devices:
             save_device(connection, device)
     return path
+
+
+@contextmanager
+def foreign_keys_off(connection: sqlite3.Connection) -> Iterator[sqlite3.Connection]:
+    """Let a test put the book into a state the constraints normally prevent.
+
+    The audit checks exist for books that got into a bad state some other way:
+    a restore from a backup taken mid write, a hand edit, a migration somebody
+    ran with the pragma off. There is no way to reach those states through the
+    repositories, which is the point of them, so a test has to turn the
+    constraints off to build one.
+    """
+
+    connection.execute("PRAGMA foreign_keys = OFF")
+    try:
+        yield connection
+    finally:
+        connection.execute("PRAGMA foreign_keys = ON")
