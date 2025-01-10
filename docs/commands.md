@@ -41,6 +41,14 @@ Take a payment against an account.
 - `--method` How it arrived.
 - `--reference` Cheque number or anything like it.
 
+## headgate check
+
+Read the book over and say what is wrong with it.
+
+- `--on` The day to check against, default today.
+- `--warnings` Print the warnings as well as the problems.
+- `--list-checks` Print what gets checked and stop.
+
 ## headgate device
 
 Structures, their staff gauges and their calibrations.
