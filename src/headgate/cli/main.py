@@ -22,6 +22,7 @@ from . import readings as reading_commands
 from . import reports as report_commands
 from . import setup as setup_commands
 from . import storage as storage_commands
+from . import transfers as transfer_commands
 from .context import DEFAULT_BOOK, Context, district_name
 
 STANDARD_NAMES = [item.name.lower() for item in MinersInchStandard]
@@ -115,6 +116,7 @@ device_commands.register(main)
 reading_commands.register(main)
 storage_commands.register(main)
 check_commands.register(main)
+transfer_commands.register(main)
 
 
 def run() -> int:

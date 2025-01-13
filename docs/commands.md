@@ -300,3 +300,57 @@ Record the board's season declaration.
 ## headgate status
 
 Say what book this is and where it stands.
+
+## headgate transfer
+
+Applications to change a right.
+
+## headgate transfer approve
+
+Approve an application on terms.
+
+- `number` (argument)
+- `--approved` (required) Acre feet the terms allow.
+- `--consumed-share` (required) Share of the delivery consumed.
+- `--condition` A condition of the approval.
+
+## headgate transfer deny
+
+Deny an application.
+
+- `number` (argument)
+- `--reason` (required) Why it was denied.
+
+## headgate transfer file
+
+File an application against a right.
+
+- `--number` (required) Application number.
+- `--decree` (required) The right being changed.
+- `--kind` (required) What changes.
+- `--filed` (required) The day it was filed.
+- `--requested` (required) Acre feet asked to be moved.
+- `--proved` (required) Acre feet the study proves.
+- `--from-turnout` Where the water comes off.
+- `--to-turnout` Where it is going.
+- `--dry-up` A parcel offered for dry up.
+
+## headgate transfer list
+
+List the applications in the book.
+
+- `--decree` Only applications against one right.
+- `--open` Only the ones still moving.
+
+## headgate transfer protest
+
+Record a protest against a published application.
+
+- `number` (argument)
+- `--note` (required) What the protest says.
+
+## headgate transfer publish
+
+Publish an application for protest.
+
+- `number` (argument)
