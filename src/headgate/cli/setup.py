@@ -17,6 +17,7 @@ from decimal import Decimal
 import click
 
 from ..assessment.payment import Payment, PaymentMethod
+from ..assessment.tiers import Band, RateSchedule
 from ..errors import NotFoundError, PolicyError
 from ..ids import AccountNumber, DitchCode, TurnoutCode
 from ..model.account import Account, AccountStatus, ShareCertificate
@@ -30,6 +31,7 @@ from ..store.repo_accounts import (
 )
 from ..store.repo_ditch import load_system, save_system
 from ..store.repo_payments import account_ledger, take_payment
+from ..store.repo_schedule import adopt
 from ..store.repo_season import declare_season
 from ..wateryear import IrrigationSeason, parse_day
 from .context import Context
@@ -298,6 +300,50 @@ def declare(
         click.echo(
             f"season {declared_season.water_year} declared, {declared_season.opened} to "
             f"{declared_season.closed}, {declared_season.length_days} days"
+        )
+
+
+@season.command("rates")
+@click.option("--year", "water_year", required=True, type=int, help="Water year.")
+@click.option("--per-share", required=True, help="Flat charge a share, in dollars.")
+@click.option(
+    "--band",
+    multiple=True,
+    help="A band as ceiling:rate, or open:rate for the top one.",
+)
+@click.option("--minimum", default="0", show_default=True, help="Minimum bill in dollars.")
+@click.option("--adopted", required=True, help="The day the board adopted it.")
+@click.pass_obj
+def rates(
+    context: Context,
+    water_year: int,
+    per_share: str,
+    band: tuple[str, ...],
+    minimum: str,
+    adopted: str,
+) -> None:
+    """Adopt the rate schedule for a water year."""
+
+    if not band:
+        raise PolicyError("a schedule needs at least one band, the open one at the top")
+    bands: list[Band] = []
+    for text in band:
+        ceiling, _, rate = text.partition(":")
+        if not rate:
+            raise PolicyError(f"{text!r} is not a band, write it as ceiling:rate")
+        upper = None if ceiling.strip().lower() == "open" else Decimal(ceiling)
+        bands.append(Band(upper_af=upper, rate_per_af=Money.parse(rate)))
+    schedule = RateSchedule(
+        water_year=water_year,
+        per_share=Money.parse(per_share),
+        bands=tuple(bands),
+        minimum_bill=Money.parse(minimum),
+    )
+    with context.open_current() as connection:
+        adopt(connection, schedule, parse_day(adopted))
+        click.echo(
+            f"{water_year} rates adopted, {schedule.per_share} a share and "
+            f"{len(schedule.bands)} bands"
         )
 
 

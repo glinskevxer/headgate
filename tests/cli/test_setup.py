@@ -389,3 +389,90 @@ def test_a_payment_of_nothing_is_refused(book: Path) -> None:
     )
     assert code != 0
     assert "not a payment" in output
+
+
+def test_the_rate_schedule_is_adopted(book: Path) -> None:
+    code, output = run(
+        book,
+        [
+            "season",
+            "rates",
+            "--year",
+            "2025",
+            "--per-share",
+            "6.00",
+            "--band",
+            "50:2.00",
+            "--band",
+            "open:3.50",
+            "--adopted",
+            "2025-03-20",
+        ],
+    )
+    assert code == 0
+    assert "2025 rates adopted" in output
+    assert "2 bands" in output
+
+
+def test_a_schedule_with_no_bands_is_refused(book: Path) -> None:
+    code, output = run(
+        book,
+        ["season", "rates", "--year", "2025", "--per-share", "6.00", "--adopted", "2025-03-20"],
+    )
+    assert code != 0
+    assert "at least one band" in output
+
+
+def test_a_band_written_wrong_is_refused(book: Path) -> None:
+    code, output = run(
+        book,
+        [
+            "season",
+            "rates",
+            "--year",
+            "2025",
+            "--per-share",
+            "6.00",
+            "--band",
+            "50",
+            "--adopted",
+            "2025-03-20",
+        ],
+    )
+    assert code != 0
+    assert "write it as ceiling:rate" in output
+
+
+def test_adopting_the_same_year_twice_is_refused(book: Path) -> None:
+    run(
+        book,
+        [
+            "season",
+            "rates",
+            "--year",
+            "2025",
+            "--per-share",
+            "6.00",
+            "--band",
+            "open:3.50",
+            "--adopted",
+            "2025-03-20",
+        ],
+    )
+    code, output = run(
+        book,
+        [
+            "season",
+            "rates",
+            "--year",
+            "2025",
+            "--per-share",
+            "7.00",
+            "--band",
+            "open:4.00",
+            "--adopted",
+            "2025-03-21",
+        ],
+    )
+    assert code != 0
+    assert "already been adopted" in output

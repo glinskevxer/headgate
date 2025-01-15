@@ -297,6 +297,16 @@ Record the board's season declaration.
 - `--declared` (required) The day the board voted.
 - `--note` Anything worth keeping with the vote.
 
+## headgate season rates
+
+Adopt the rate schedule for a water year.
+
+- `--year` (required) Water year.
+- `--per-share` (required) Flat charge a share, in dollars.
+- `--band` A band as ceiling:rate, or open:rate for the top one.
+- `--minimum` Minimum bill in dollars.
+- `--adopted` (required) The day the board adopted it.
+
 ## headgate status
 
 Say what book this is and where it stands.
