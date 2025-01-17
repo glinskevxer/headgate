@@ -350,6 +350,9 @@ def rates(
 def register_commands(group: click.Group) -> None:
     """Hang the setup commands off the main group."""
 
+    from .close import register as register_close
+
+    register_close(season)
     group.add_command(ditch)
     group.add_command(account)
     group.add_command(season)

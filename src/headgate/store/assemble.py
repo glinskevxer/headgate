@@ -12,10 +12,11 @@ report shows the gap instead of quietly leaving the turnout off.
 from __future__ import annotations
 
 import sqlite3
+from datetime import date
 from decimal import Decimal
 
 from ..errors import NotFoundError, PolicyError
-from ..ids import DeviceTag, DitchCode, TurnoutCode
+from ..ids import AccountNumber, DeviceTag, DitchCode, TurnoutCode
 from ..measure.delivery import DeliveryLedger, DeliveryRecord, record_for
 from ..measure.integrate import (
     DEFAULT_STALE_AFTER_HOURS,
@@ -27,6 +28,7 @@ from ..measure.integrate import (
 from ..measure.quality import Provenance
 from ..model.reading import ReadingSeries
 from ..wateryear import Span
+from .repo_accounts import load_register
 from .repo_devices import device_at_turnout, load_devices
 from .repo_ditch import load_system
 from .repo_readings import load_series_within
@@ -109,3 +111,46 @@ def turnouts_without_a_device(
         except NotFoundError:
             missing.append(turnout.code)
     return tuple(missing)
+
+
+def turnout_accounts(connection: sqlite3.Connection, on: date) -> dict[TurnoutCode, AccountNumber]:
+    """Which account stands behind each turnout on a day.
+
+    A turnout with two shareholders behind it cannot be billed from here. The
+    office has to say how the water splits, and guessing at it would put a
+    number on somebody's bill that nobody decided.
+    """
+
+    register = load_register(connection)
+    found: dict[TurnoutCode, AccountNumber] = {}
+    holders: dict[TurnoutCode, set[AccountNumber]] = {}
+    for certificate in register.held_on(on):
+        holders.setdefault(certificate.turnout, set()).add(certificate.account)
+    for turnout, accounts in holders.items():
+        if len(accounts) > 1:
+            names = ", ".join(str(item) for item in sorted(accounts))
+            raise PolicyError(
+                f"turnout {turnout} has shares held by {names} and the book does not say "
+                "how to split it"
+            )
+        found[turnout] = next(iter(accounts))
+    return found
+
+
+def shares_by_account(connection: sqlite3.Connection, on: date) -> dict[AccountNumber, Decimal]:
+    """What every account held on a day, including the ones holding nothing."""
+
+    register = load_register(connection)
+    return {holder.number: register.shares_of(holder.number, on) for holder in register.accounts}
+
+
+def shares_by_turnout(connection: sqlite3.Connection, on: date) -> dict[TurnoutCode, Decimal]:
+    """What every turnout carried on a day, for a loss split by share."""
+
+    register = load_register(connection)
+    found: dict[TurnoutCode, Decimal] = {}
+    for certificate in register.held_on(on):
+        found[certificate.turnout] = (
+            found.get(certificate.turnout, Decimal("0")) + certificate.shares
+        )
+    return found

@@ -287,6 +287,15 @@ The pool and the accounts behind it.
 
 Declare and look at the irrigation season.
 
+## headgate season close
+
+Close a season: total the water, charge the loss, bill everybody.
+
+- `--year` (required) Water year to close.
+- `--issued` The day the bills go out, default today.
+- `--loss` How the ditch loss is charged out.
+- `--dry-run` Work the numbers and write nothing.
+
 ## headgate season declare
 
 Record the board's season declaration.
