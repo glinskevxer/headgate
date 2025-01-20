@@ -105,7 +105,10 @@ def close(**overrides: object):  # type: ignore[no-untyped-def]
         "headgate_af": Decimal("180"),
         "system": system(),
         "schedule": schedule(),
-        "turnout_accounts": {NEAR: HOLDER, FAR: OTHER},
+        "turnout_owners": {
+            NEAR: {HOLDER: Decimal("24")},
+            FAR: {OTHER: Decimal("16")},
+        },
         "shares": {HOLDER: Decimal("20"), OTHER: Decimal("12")},
         "issued_on": ISSUED,
     }
@@ -146,7 +149,30 @@ def test_an_account_that_took_no_water_is_still_billed_for_its_shares() -> None:
 
 def test_a_turnout_with_no_owner_stops_the_close() -> None:
     with pytest.raises(PolicyError, match="no account stands behind it"):
-        close(turnout_accounts={NEAR: HOLDER})
+        close(turnout_owners={NEAR: {HOLDER: Decimal("24")}})
+
+
+def test_a_shared_turnout_splits_between_the_accounts_behind_it() -> None:
+    shared = close(
+        turnout_owners={
+            NEAR: {HOLDER: Decimal("24")},
+            FAR: {OTHER: Decimal("12"), HOLDER: Decimal("4")},
+        }
+    )
+    alone = close()
+    assert shared.account_season(HOLDER).delivered_af > alone.account_season(HOLDER).delivered_af
+    assert shared.account_season(OTHER).delivered_af < alone.account_season(OTHER).delivered_af
+    assert shared.delivered_af == alone.delivered_af
+
+
+def test_a_turnout_behind_shares_of_nothing_stops_the_close() -> None:
+    with pytest.raises(PolicyError, match="holding no shares"):
+        close(
+            turnout_owners={
+                NEAR: {HOLDER: Decimal("24")},
+                FAR: {OTHER: Decimal("0")},
+            }
+        )
 
 
 def test_a_season_where_nothing_ran_cannot_be_closed() -> None:

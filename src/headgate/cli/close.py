@@ -23,7 +23,7 @@ from ..store.assemble import (
     headgate_volume,
     shares_by_account,
     shares_by_turnout,
-    turnout_accounts,
+    turnout_owners,
 )
 from ..store.repo_bills import issued_on, save_run
 from ..store.repo_ditch import load_system
@@ -75,7 +75,7 @@ def close(
             headgate_af=headgate.total_af,
             system=system,
             schedule=schedule,
-            turnout_accounts=turnout_accounts(connection, season.opened),
+            turnout_owners=turnout_owners(connection, season.opened),
             shares=shares_by_account(connection, season.opened),
             issued_on=issued_day,
             policy=policy,

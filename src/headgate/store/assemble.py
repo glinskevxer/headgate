@@ -113,27 +113,22 @@ def turnouts_without_a_device(
     return tuple(missing)
 
 
-def turnout_accounts(connection: sqlite3.Connection, on: date) -> dict[TurnoutCode, AccountNumber]:
-    """Which account stands behind each turnout on a day.
+def turnout_owners(
+    connection: sqlite3.Connection, on: date
+) -> dict[TurnoutCode, dict[AccountNumber, Decimal]]:
+    """The shares each account held at each turnout on a day.
 
-    A turnout with two shareholders behind it cannot be billed from here. The
-    office has to say how the water splits, and guessing at it would put a
-    number on somebody's bill that nobody decided.
+    A turnout with two shareholders behind it comes back with both of them and
+    what each holds, which is what the season close splits the water on.
     """
 
     register = load_register(connection)
-    found: dict[TurnoutCode, AccountNumber] = {}
-    holders: dict[TurnoutCode, set[AccountNumber]] = {}
+    found: dict[TurnoutCode, dict[AccountNumber, Decimal]] = {}
     for certificate in register.held_on(on):
-        holders.setdefault(certificate.turnout, set()).add(certificate.account)
-    for turnout, accounts in holders.items():
-        if len(accounts) > 1:
-            names = ", ".join(str(item) for item in sorted(accounts))
-            raise PolicyError(
-                f"turnout {turnout} has shares held by {names} and the book does not say "
-                "how to split it"
-            )
-        found[turnout] = next(iter(accounts))
+        gate = found.setdefault(certificate.turnout, {})
+        gate[certificate.account] = gate.get(certificate.account, Decimal("0")) + (
+            certificate.shares
+        )
     return found
 
 

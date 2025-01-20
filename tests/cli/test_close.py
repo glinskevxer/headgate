@@ -173,7 +173,7 @@ def test_the_loss_rule_can_be_chosen(district: Path) -> None:
     assert "ditch loss" in output
 
 
-def test_a_turnout_with_two_shareholders_stops_the_close(district: Path) -> None:
+def test_a_turnout_with_two_shareholders_is_split_between_them(district: Path) -> None:
     with Database(district).open() as connection:
         save_register(
             connection,
@@ -190,5 +190,5 @@ def test_a_turnout_with_two_shareholders_stops_the_close(district: Path) -> None
             ),
         )
     code, output = run(district, ["season", "close", "--year", "2025", "--issued", "2025-11-01"])
-    assert code != 0
-    assert "does not say" in output
+    assert code == 0
+    assert "2 bills written" in output

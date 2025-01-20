@@ -34,6 +34,11 @@ LOWER = TurnoutCode("L2-14")
 FAR = TurnoutCode("L2-20")
 PETERSON = AccountNumber(118)
 LARSEN = AccountNumber(212)
+OWNERS = {
+    BENCH: {PETERSON: Decimal("24")},
+    LOWER: {LARSEN: Decimal("16")},
+    FAR: {LARSEN: Decimal("8")},
+}
 
 
 def run(book: Path, arguments: list[str]) -> tuple[int, str]:
@@ -394,7 +399,7 @@ def test_the_season_closes_off_the_same_water_the_report_shows(district: Path) -
             headgate_af=headgate.total_af,
             system=system,
             schedule=schedule(),
-            turnout_accounts={BENCH: PETERSON, LOWER: LARSEN, FAR: LARSEN},
+            turnout_owners=OWNERS,
             shares=shares,
             issued_on=date(2025, 11, 1),
             policy=LossPolicy.BY_LEG,
@@ -418,7 +423,7 @@ def test_the_far_turnout_carries_the_most_loss(district: Path) -> None:
             headgate_af=headgate.total_af,
             system=system,
             schedule=schedule(),
-            turnout_accounts={BENCH: PETERSON, LOWER: LARSEN, FAR: LARSEN},
+            turnout_owners=OWNERS,
             shares={PETERSON: Decimal("24"), LARSEN: Decimal("24")},
             issued_on=date(2025, 11, 1),
         )
@@ -455,7 +460,7 @@ def test_the_bills_add_up_to_what_the_run_says(district: Path) -> None:
             headgate_af=headgate.total_af,
             system=load_system(connection),
             schedule=schedule(),
-            turnout_accounts={BENCH: PETERSON, LOWER: LARSEN, FAR: LARSEN},
+            turnout_owners=OWNERS,
             shares={PETERSON: Decimal("24"), LARSEN: Decimal("24")},
             issued_on=date(2025, 11, 1),
         )

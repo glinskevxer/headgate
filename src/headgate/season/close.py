@@ -7,6 +7,11 @@ whatever rule the board adopted. Each account's water and its share of the loss
 are billed. The report is built from the same ledger the bills came off, so the
 two cannot disagree.
 
+A turnout with two shareholders behind it is split between them in proportion
+to the shares each holds at that gate. That is what the stock book says they
+are entitled to and it is what the office has always done with a shared
+turnout; the alternative is billing one of them for the other's water.
+
 The one thing this refuses to do is close a season it cannot account for. A
 turnout that ran and has no owner behind it, or a season where the turnouts
 took more than the headgate passed, is a bookkeeping problem and it gets fixed
@@ -78,22 +83,44 @@ class SeasonClose:
         return self.bills.bill_for(account)
 
 
+def _split(
+    volume_af: Decimal, weights: Mapping[AccountNumber, Decimal]
+) -> dict[AccountNumber, Decimal]:
+    """Split one turnout's water between the accounts behind the gate."""
+
+    total = sum(weights.values(), Decimal("0"))
+    if total <= 0:
+        raise PolicyError("a turnout cannot be split between accounts holding no shares")
+    ordered = sorted(weights, key=str)
+    given = Decimal("0")
+    pieces: dict[AccountNumber, Decimal] = {}
+    for index, account in enumerate(ordered):
+        if index == len(ordered) - 1:
+            pieces[account] = round_volume(volume_af - given)
+        else:
+            piece = round_volume(volume_af * weights[account] / total)
+            pieces[account] = piece
+            given += piece
+    return pieces
+
+
 def _gather(
     ledger: DeliveryLedger,
     apportionment: Apportionment,
-    turnout_accounts: Mapping[TurnoutCode, AccountNumber],
+    turnout_owners: Mapping[TurnoutCode, Mapping[AccountNumber, Decimal]],
     shares: Mapping[AccountNumber, Decimal],
 ) -> tuple[AccountSeason, ...]:
     delivered: dict[AccountNumber, Decimal] = {}
     lost: dict[AccountNumber, Decimal] = {}
     for record in ledger.records:
-        owner = turnout_accounts.get(record.turnout)
-        if owner is None:
+        owners = turnout_owners.get(record.turnout)
+        if not owners:
             raise PolicyError(f"turnout {record.turnout} ran and no account stands behind it")
-        delivered[owner] = delivered.get(owner, Decimal("0")) + record.total_af
-        lost[owner] = (
-            lost.get(owner, Decimal("0")) + apportionment.for_turnout(record.turnout).loss_af
-        )
+        water = _split(record.total_af, owners)
+        loss = _split(apportionment.for_turnout(record.turnout).loss_af, owners)
+        for account in owners:
+            delivered[account] = delivered.get(account, Decimal("0")) + water[account]
+            lost[account] = lost.get(account, Decimal("0")) + loss[account]
     for account in shares:
         delivered.setdefault(account, Decimal("0"))
         lost.setdefault(account, Decimal("0"))
@@ -115,7 +142,7 @@ def close_season(
     headgate_af: Decimal,
     system: DitchSystem,
     schedule: RateSchedule,
-    turnout_accounts: Mapping[TurnoutCode, AccountNumber],
+    turnout_owners: Mapping[TurnoutCode, Mapping[AccountNumber, Decimal]],
     shares: Mapping[AccountNumber, Decimal],
     issued_on: date,
     policy: LossPolicy = LossPolicy.BY_LEG,
@@ -129,7 +156,7 @@ def close_season(
     loss = measured_loss(headgate_af, volumes)
     split = apportion(volumes, loss, policy, system=system, shares=turnout_shares)
     report = build(water_year, district, ledger, split, headgate_af, system)
-    accounts = _gather(ledger, split, turnout_accounts, shares)
+    accounts = _gather(ledger, split, turnout_owners, shares)
     bills = BillRun(
         water_year=water_year,
         issued_on=issued_on,
