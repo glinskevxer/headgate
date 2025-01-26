@@ -209,3 +209,55 @@ def test_the_policy_words_are_checked_on_their_own() -> None:
     assert check_policy("by-leg").value == "by_leg"
     with pytest.raises(PolicyError, match="not a loss rule"):
         check_policy("by-guess")
+
+
+def test_the_journal_prints_what_was_posted(district: Path) -> None:
+    from headgate.audit.journal import EntryKind
+    from headgate.store.repo_journal import post
+
+    with Database(district).open() as connection:
+        post(
+            connection,
+            datetime(2025, 7, 1, 8),
+            EntryKind.DELIVERY,
+            "L2-14",
+            "first set",
+            volume_af=Decimal("12.5"),
+        )
+    code, output = run(district, ["report", "journal"])
+    assert code == 0
+    assert "L2-14" in output
+    assert "12.50" in output
+
+
+def test_an_empty_journal_says_so(district: Path) -> None:
+    code, output = run(district, ["report", "journal"])
+    assert code == 0
+    assert "nothing in the journal answers that" in output
+
+
+def test_the_journal_can_be_cut_down_to_one_subject(district: Path) -> None:
+    from headgate.audit.journal import EntryKind
+    from headgate.store.repo_journal import post
+
+    with Database(district).open() as connection:
+        post(
+            connection,
+            datetime(2025, 7, 1, 8),
+            EntryKind.DELIVERY,
+            "L2-14",
+            "first",
+            volume_af=Decimal("12.5"),
+        )
+        post(
+            connection,
+            datetime(2025, 7, 1, 8),
+            EntryKind.DELIVERY,
+            "MAIN-3",
+            "second",
+            volume_af=Decimal("4.5"),
+        )
+    code, output = run(district, ["report", "journal", "--subject", "MAIN-3"])
+    assert code == 0
+    assert "MAIN-3" in output
+    assert "L2-14" not in output

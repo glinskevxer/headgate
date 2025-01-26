@@ -12,13 +12,16 @@ from decimal import Decimal
 
 import click
 
+from ..audit.journal import EntryKind
 from ..carriage.apportion import LossPolicy, apportion, measured_loss
 from ..cli.render import Align, Column, field_list, rate, render_table, volume
 from ..errors import PolicyError
 from ..ids import TurnoutCode
+from ..report.ledger import build as ledger_report
 from ..report.season import build
 from ..store.assemble import build_ledger, headgate_volume, turnouts_without_a_device
 from ..store.repo_ditch import load_system
+from ..store.repo_journal import load_journal
 from ..store.repo_orders import orders_running_at
 from ..store.repo_season import load_season
 from ..wateryear import Span, parse_instant
@@ -145,6 +148,52 @@ def gaps(context: Context, water_year: int) -> None:
             if record.turnout in unmeasured:
                 continue
             click.echo(f"{record.turnout}: {record.unaccounted_hours} hours unaccounted for")
+
+
+@report.command("journal")
+@click.option("--subject", default=None, help="Only entries about one subject.")
+@click.option(
+    "--kind",
+    "kind_name",
+    type=click.Choice([item.value for item in EntryKind]),
+    default=None,
+    help="Only entries of one kind.",
+)
+@click.option("--from", "first", default=None, help="Earliest entry to print.")
+@click.option("--to", "last", default=None, help="Latest entry to print.")
+@click.pass_obj
+def journal(
+    context: Context,
+    subject: str | None,
+    kind_name: str | None,
+    first: str | None,
+    last: str | None,
+) -> None:
+    """Print the journal, or the part of it somebody asked about."""
+
+    with context.open_current() as connection:
+        built = ledger_report(
+            load_journal(connection).entries,
+            subject=subject,
+            kind=EntryKind(kind_name) if kind_name is not None else None,
+            first=parse_instant(first) if first is not None else None,
+            last=parse_instant(last) if last is not None else None,
+        )
+    if built.is_empty:
+        click.echo("nothing in the journal answers that")
+        return
+    click.echo(field_list(built.summary()))
+    click.echo()
+    columns = [
+        Column("entry", Align.RIGHT),
+        Column("day"),
+        Column("kind"),
+        Column("subject"),
+        Column("water", Align.RIGHT),
+        Column("money", Align.RIGHT),
+        Column("note"),
+    ]
+    click.echo(render_table(columns, built.rows()))
 
 
 @report.command("running")

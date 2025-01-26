@@ -217,6 +217,15 @@ Turnouts nothing is measuring, and turnouts with holes in the record.
 
 - `water_year` (argument)
 
+## headgate report journal
+
+Print the journal, or the part of it somebody asked about.
+
+- `--subject` Only entries about one subject.
+- `--kind` Only entries of one kind.
+- `--from` Earliest entry to print.
+- `--to` Latest entry to print.
+
 ## headgate report running
 
 What is running right now, off the answered orders.
