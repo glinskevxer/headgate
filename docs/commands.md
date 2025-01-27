@@ -41,6 +41,36 @@ Take a payment against an account.
 - `--method` How it arrived.
 - `--reference` Cheque number or anything like it.
 
+## headgate call
+
+Calls on the stream, and the notices that answer them.
+
+## headgate call lift
+
+Lift every notice served for one call.
+
+- `--decree` (required) The right whose call is over.
+- `--at` When it was lifted.
+
+## headgate call place
+
+Work a call against the creek as it stands.
+
+- `--decree` (required) The right placing the call.
+- `--arriving` (required) What is reaching its headgate, in cfs.
+- `--taking` A diversion as decree=cfs.
+- `--at` When the call was placed.
+- `--needed-by` When the water has to be there.
+- `--stream` The stream's name.
+- `--serve` Serve the notices if it is honoured.
+- `--notice-hours` Notice period.
+
+## headgate call standing
+
+What curtailments are in force.
+
+- `--at` The moment to look at.
+
 ## headgate check
 
 Read the book over and say what is wrong with it.

@@ -15,6 +15,7 @@ from .. import __version__
 from ..errors import HeadgateError
 from ..store.migrations import current_version, describe, migrate, pending
 from ..units import MinersInchStandard
+from . import calls as call_commands
 from . import checks as check_commands
 from . import devices as device_commands
 from . import orders as order_commands
@@ -117,6 +118,7 @@ reading_commands.register(main)
 storage_commands.register(main)
 check_commands.register(main)
 transfer_commands.register(main)
+call_commands.register_commands(main)
 
 
 def run() -> int:
