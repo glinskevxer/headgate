@@ -322,6 +322,43 @@ The pool and the accounts behind it.
 - `--name` (required) Which reservoir.
 - `--year` (required) Water year.
 
+## headgate right
+
+Decreed water rights.
+
+## headgate right abandon
+
+Change a right's standing with the court.
+
+- `decree` (argument)
+- `--status` What the court made of it.
+
+## headgate right add
+
+Write a decreed right into the book.
+
+- `--decree` (required) Decree number, such as CDA-1920-4.
+- `--owner` (required) Whose right it is.
+- `--kind` What the decree entitles them to.
+- `--appropriated` (required) The appropriation date.
+- `--sequence` (required) Place in the decree book.
+- `--mile` (required) River mile of the point of diversion.
+- `--rate` Decreed rate in cfs.
+- `--volume` Decreed volume in acre feet.
+- `--ditch` The ditch it is decreed to.
+
+## headgate right list
+
+The ladder, most senior first.
+
+- `--active` Leave off the dead ones.
+
+## headgate right show
+
+One decree, as the book has it.
+
+- `decree` (argument)
+
 ## headgate season
 
 Declare and look at the irrigation season.
@@ -358,6 +395,28 @@ Adopt the rate schedule for a water year.
 ## headgate status
 
 Say what book this is and where it stands.
+
+## headgate stream
+
+The creek the district diverts from.
+
+## headgate stream reach
+
+Add a reach to the stream, head to toe.
+
+- `--name` (required) The stream's name.
+- `--code` (required) Reach code, such as R1.
+- `--label` (required) What the reach is called.
+- `--head` (required) River mile at the top of the reach.
+- `--toe` (required) River mile at the bottom.
+- `--velocity` Mean velocity in feet a second.
+- `--loss` Loss as a fraction a mile.
+
+## headgate stream show
+
+The creek, reach by reach.
+
+- `--name` (required) The stream's name.
 
 ## headgate transfer
 

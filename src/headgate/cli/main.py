@@ -21,6 +21,7 @@ from . import devices as device_commands
 from . import orders as order_commands
 from . import readings as reading_commands
 from . import reports as report_commands
+from . import rights as right_commands
 from . import setup as setup_commands
 from . import storage as storage_commands
 from . import transfers as transfer_commands
@@ -119,6 +120,7 @@ storage_commands.register(main)
 check_commands.register(main)
 transfer_commands.register(main)
 call_commands.register_commands(main)
+right_commands.register_commands(main)
 
 
 def run() -> int:
