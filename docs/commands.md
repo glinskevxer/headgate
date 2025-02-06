@@ -392,6 +392,20 @@ Adopt the rate schedule for a water year.
 - `--minimum` Minimum bill in dollars.
 - `--adopted` (required) The day the board adopted it.
 
+## headgate season restate
+
+Restate a season after a device is re-rated.
+
+- `--year` (required) Season to restate.
+- `--device` (required) The device that read wrong.
+- `--offset` (required) The staff offset it should have had, in feet.
+- `--found` (required) The day the check found it.
+- `--by` (required) Who found it.
+- `--reason` (required) What was wrong with it.
+- `--issued` The day the new bill goes out.
+- `--board-approved` The board has approved the change.
+- `--dry-run` Work the numbers and write nothing.
+
 ## headgate status
 
 Say what book this is and where it stands.

@@ -351,8 +351,10 @@ def register_commands(group: click.Group) -> None:
     """Hang the setup commands off the main group."""
 
     from .close import register as register_close
+    from .restate import register as register_restate
 
     register_close(season)
+    register_restate(season)
     group.add_command(ditch)
     group.add_command(account)
     group.add_command(season)

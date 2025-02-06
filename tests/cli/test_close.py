@@ -192,3 +192,175 @@ def test_a_turnout_with_two_shareholders_is_split_between_them(district: Path) -
     code, output = run(district, ["season", "close", "--year", "2025", "--issued", "2025-11-01"])
     assert code == 0
     assert "2 bills written" in output
+
+
+def closed(district: Path) -> None:
+    run(district, ["season", "close", "--year", "2025", "--issued", "2025-11-01"])
+
+
+def test_a_rerating_restates_the_season(district: Path) -> None:
+    closed(district)
+    code, output = run(
+        district,
+        [
+            "season",
+            "restate",
+            "--year",
+            "2025",
+            "--device",
+            "WEIR-L2-14",
+            "--offset",
+            "-0.05",
+            "--found",
+            "2025-09-15",
+            "--by",
+            "R. Aldrich",
+            "--reason",
+            "staff read high",
+            "--issued",
+            "2026-01-15",
+            "--board-approved",
+        ],
+    )
+    assert code == 0
+    assert "should be" in output
+    assert "adjustment" in output
+    assert "written and posted" in output
+
+
+def test_a_dry_run_restatement_writes_nothing(district: Path) -> None:
+    closed(district)
+    code, output = run(
+        district,
+        [
+            "season",
+            "restate",
+            "--year",
+            "2025",
+            "--device",
+            "WEIR-L2-14",
+            "--offset",
+            "-0.05",
+            "--found",
+            "2025-09-15",
+            "--by",
+            "R. Aldrich",
+            "--reason",
+            "staff read high",
+            "--issued",
+            "2026-01-15",
+            "--board-approved",
+            "--dry-run",
+        ],
+    )
+    assert code == 0
+    assert "this was a dry run" in output
+
+
+def test_a_small_change_is_not_worth_restating(district: Path) -> None:
+    closed(district)
+    code, output = run(
+        district,
+        [
+            "season",
+            "restate",
+            "--year",
+            "2025",
+            "--device",
+            "WEIR-L2-14",
+            "--offset",
+            "0",
+            "--found",
+            "2025-09-15",
+            "--by",
+            "R. Aldrich",
+            "--reason",
+            "staff read true",
+            "--issued",
+            "2026-01-15",
+        ],
+    )
+    assert code == 0
+    assert "not worth restating" in output
+
+
+def test_a_big_restatement_needs_the_board(district: Path) -> None:
+    closed(district)
+    code, output = run(
+        district,
+        [
+            "season",
+            "restate",
+            "--year",
+            "2025",
+            "--device",
+            "WEIR-L2-14",
+            "--offset",
+            "-0.15",
+            "--found",
+            "2025-09-15",
+            "--by",
+            "R. Aldrich",
+            "--reason",
+            "staff read high",
+            "--issued",
+            "2026-01-15",
+        ],
+    )
+    assert code != 0
+    assert "needs the board" in output
+
+
+def test_restating_a_season_nobody_billed_is_refused(district: Path) -> None:
+    code, output = run(
+        district,
+        [
+            "season",
+            "restate",
+            "--year",
+            "2025",
+            "--device",
+            "WEIR-L2-14",
+            "--offset",
+            "-0.05",
+            "--found",
+            "2025-09-15",
+            "--by",
+            "R. Aldrich",
+            "--reason",
+            "staff read high",
+            "--issued",
+            "2026-01-15",
+            "--board-approved",
+        ],
+    )
+    assert code != 0
+    assert "never billed" in output
+
+
+def test_restating_off_a_canal_device_is_refused(district: Path) -> None:
+    closed(district)
+    code, output = run(
+        district,
+        [
+            "season",
+            "restate",
+            "--year",
+            "2025",
+            "--device",
+            "FLUME-MAIN",
+            "--offset",
+            "0.05",
+            "--found",
+            "2025-09-15",
+            "--by",
+            "R. Aldrich",
+            "--reason",
+            "staff read low",
+            "--issued",
+            "2026-01-15",
+            "--board-approved",
+        ],
+    )
+    assert code != 0
+    assert "not a turnout" in output
