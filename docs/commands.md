@@ -168,6 +168,52 @@ Set up a new district book.
 - `--stream` (required) The stream the main canal heads on.
 - `--miners-inch` Which statute the district converts miner's inches under.
 
+## headgate lease
+
+Leases of this year's water.
+
+## headgate lease approve
+
+Approve a lease so it can deliver water.
+
+- `number` (argument)
+- `--note` The board minute, or anything like it.
+
+## headgate lease cancel
+
+Cancel a lease that has not delivered anything.
+
+- `number` (argument)
+- `--note` (required) Why it was cancelled.
+
+## headgate lease deliver
+
+Post water against a lease.
+
+- `number` (argument)
+- `--volume` (required) Acre feet delivered.
+
+## headgate lease list
+
+The lease book for a year.
+
+- `--year` (required) Water year.
+- `--account` Only one account's leases.
+
+## headgate lease offer
+
+Offer a lease of this year's water.
+
+- `--number` (required) Lease number.
+- `--year` (required) Water year.
+- `--from` (required) Who is leasing it out.
+- `--to` (required) Who is taking it.
+- `--volume` (required) Acre feet.
+- `--price` (required) Price an acre foot, in dollars.
+- `--source` What is being leased.
+- `--holding` (required) What the lessor has this year, in acre feet.
+- `--on` The day it was offered.
+
 ## headgate migrate-book
 
 Bring an existing book up to this version.
