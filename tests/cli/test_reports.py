@@ -261,3 +261,92 @@ def test_the_journal_can_be_cut_down_to_one_subject(district: Path) -> None:
     assert code == 0
     assert "MAIN-3" in output
     assert "L2-14" not in output
+
+
+def add_rights(district: Path) -> None:
+    for decree, sequence, year, cfs in (
+        ("CDA-1920-1", 1, 1873, "6"),
+        ("CDA-1920-5", 5, 1901, "5"),
+    ):
+        run(
+            district,
+            [
+                "right",
+                "add",
+                "--decree",
+                decree,
+                "--owner",
+                f"Owner {sequence}",
+                "--appropriated",
+                f"{year}-05-01",
+                "--sequence",
+                str(sequence),
+                "--mile",
+                "20",
+                "--rate",
+                cfs,
+            ],
+        )
+
+
+def test_the_day_report_lists_the_ladder(district: Path) -> None:
+    add_rights(district)
+    code, output = run(
+        district,
+        [
+            "report",
+            "day",
+            "--on",
+            "2025-07-04",
+            "--flow",
+            "20",
+            "--taking",
+            "CDA-1920-1=6",
+            "--taking",
+            "CDA-1920-5=5",
+        ],
+    )
+    assert code == 0
+    assert "CDA-1920-1" in output
+    assert "diverted" in output
+
+
+def test_a_right_over_its_decree_shows_on_the_day_report(district: Path) -> None:
+    add_rights(district)
+    code, output = run(
+        district,
+        ["report", "day", "--on", "2025-07-04", "--flow", "20", "--taking", "CDA-1920-5=9"],
+    )
+    assert code == 0
+    assert "rights are over what they are allowed" in output
+
+
+def test_a_diversion_written_wrong_is_refused_on_the_day_report(district: Path) -> None:
+    add_rights(district)
+    code, output = run(
+        district,
+        ["report", "day", "--on", "2025-07-04", "--flow", "20", "--taking", "CDA-1920-5"],
+    )
+    assert code != 0
+    assert "write it as decree=cfs" in output
+
+
+def test_an_account_statement_prints_the_water_and_the_money(district: Path) -> None:
+    code, output = run(
+        district,
+        ["report", "account", "--account", "118", "--year", "2025", "--as-of", "2025-12-15"],
+    )
+    assert code == 0
+    assert "Holder 118" in output
+    assert "acre feet" in output
+    assert "standing" in output
+
+
+def test_an_account_delivered_nowhere_has_no_statement(district: Path) -> None:
+    run(
+        district,
+        ["account", "add", "--number", "999", "--name", "Nobody", "--joined", "2020-01-01"],
+    )
+    code, output = run(district, ["report", "account", "--account", "999", "--year", "2025"])
+    assert code != 0
+    assert "not delivered anywhere" in output

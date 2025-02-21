@@ -287,6 +287,23 @@ Every reading on one device, oldest first.
 
 Print what the book says.
 
+## headgate report account
+
+One account's statement for a season.
+
+- `--account` (required) Whose statement.
+- `--year` (required) Water year.
+- `--as-of` The day to work the balance to.
+- `--due` The day the bill was due.
+
+## headgate report day
+
+The water commissioner's page for one day.
+
+- `--on` (required) The day to report.
+- `--flow` (required) What the creek was carrying, in cfs.
+- `--taking` A diversion as decree=cfs.
+
 ## headgate report gaps
 
 Turnouts nothing is measuring, and turnouts with holes in the record.

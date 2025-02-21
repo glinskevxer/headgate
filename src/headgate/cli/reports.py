@@ -7,7 +7,7 @@ middle of the season without thinking about it.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 
 import click
@@ -16,15 +16,26 @@ from ..audit.journal import EntryKind
 from ..carriage.apportion import LossPolicy, apportion, measured_loss
 from ..cli.render import Align, Column, field_list, rate, render_table, volume
 from ..errors import PolicyError
-from ..ids import TurnoutCode
+from ..ids import AccountNumber, DecreeNumber, TurnoutCode
+from ..report.commissioner import build_day
 from ..report.ledger import build as ledger_report
 from ..report.season import build
-from ..store.assemble import build_ledger, headgate_volume, turnouts_without_a_device
+from ..report.statement import build as build_statement
+from ..store.assemble import (
+    build_ledger,
+    headgate_volume,
+    turnout_owners,
+    turnouts_without_a_device,
+)
+from ..store.repo_accounts import load_register
+from ..store.repo_curtail import load_register as load_curtailments
 from ..store.repo_ditch import load_system
 from ..store.repo_journal import load_journal
 from ..store.repo_orders import orders_running_at
+from ..store.repo_payments import account_ledger
+from ..store.repo_rights import load_active_ladder
 from ..store.repo_season import load_season
-from ..wateryear import Span, parse_instant
+from ..wateryear import Span, parse_day, parse_instant
 from .context import Context, district_name
 
 POLICY_NAMES = [item.value.replace("_", "-") for item in LossPolicy]
@@ -148,6 +159,104 @@ def gaps(context: Context, water_year: int) -> None:
             if record.turnout in unmeasured:
                 continue
             click.echo(f"{record.turnout}: {record.unaccounted_hours} hours unaccounted for")
+
+
+@report.command("day")
+@click.option("--on", "day", required=True, help="The day to report.")
+@click.option("--flow", required=True, help="What the creek was carrying, in cfs.")
+@click.option("--taking", multiple=True, help="A diversion as decree=cfs.")
+@click.pass_obj
+def day_report(context: Context, day: str, flow: str, taking: tuple[str, ...]) -> None:
+    """The water commissioner's page for one day."""
+
+    when = parse_day(day)
+    diverting: dict[DecreeNumber, Decimal] = {}
+    for pair in taking:
+        decree, _, amount = pair.partition("=")
+        if not amount:
+            raise PolicyError(f"{pair!r} is not a diversion, write it as decree=cfs")
+        diverting[DecreeNumber.parse(decree)] = Decimal(amount)
+    with context.open_current() as connection:
+        built = build_day(
+            when,
+            load_active_ladder(connection),
+            diverting,
+            load_curtailments(connection),
+            Decimal(flow),
+        )
+    click.echo(field_list(built.summary()))
+    click.echo()
+    columns = [
+        Column("decree"),
+        Column("owner"),
+        Column("decreed", Align.RIGHT),
+        Column("allowed", Align.RIGHT),
+        Column("taking", Align.RIGHT),
+        Column("over", Align.RIGHT),
+        Column("curtailed"),
+    ]
+    click.echo(render_table(columns, built.rows()))
+    if not built.in_compliance:
+        click.echo(f"\n{len(built.over_diverting)} rights are over what they are allowed")
+
+
+@report.command("account")
+@click.option("--account", "account_number", required=True, help="Whose statement.")
+@click.option("--year", "water_year", required=True, type=int, help="Water year.")
+@click.option("--as-of", default=None, help="The day to work the balance to.")
+@click.option("--due", default=None, help="The day the bill was due.")
+@click.pass_obj
+def account_report(
+    context: Context,
+    account_number: str,
+    water_year: int,
+    as_of: str | None,
+    due: str | None,
+) -> None:
+    """One account's statement for a season."""
+
+    account = AccountNumber.parse(account_number)
+    with context.open_current() as connection:
+        season = load_season(connection, water_year)
+        span = season.as_span()
+        ledger = build_ledger(connection, span)
+        volumes = ledger.volumes()
+        headgate = headgate_volume(connection, span)
+        split = apportion(
+            volumes,
+            measured_loss(headgate.total_af, volumes),
+            LossPolicy.BY_LEG,
+            system=load_system(connection),
+        )
+        owners = turnout_owners(connection, season.opened)
+        mine = tuple(turnout for turnout, holders in owners.items() if account in holders)
+        if not mine:
+            raise PolicyError(f"account {account} was not delivered anywhere in {water_year}")
+        register = load_register(connection)
+        holder = register.account(account)
+        statement = build_statement(
+            account=account,
+            name=holder.name,
+            water_year=water_year,
+            shares=register.shares_of(account, season.opened),
+            ledger=account_ledger(connection, account),
+            deliveries=ledger,
+            turnouts=mine,
+            charged_loss={turnout: split.for_turnout(turnout).loss_af for turnout in mine},
+            due_on=parse_day(due) if due is not None else date(water_year, 12, 1),
+            as_of=parse_day(as_of) if as_of is not None else date.today(),
+        )
+    click.echo(field_list(statement.summary()))
+    click.echo()
+    columns = [
+        Column("turnout"),
+        Column("delivered", Align.RIGHT),
+        Column("measured", Align.RIGHT),
+        Column("estimated", Align.RIGHT),
+        Column("loss", Align.RIGHT),
+        Column("charged", Align.RIGHT),
+    ]
+    click.echo(render_table(columns, statement.rows()))
 
 
 @report.command("journal")
