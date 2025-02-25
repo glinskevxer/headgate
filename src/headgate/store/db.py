@@ -45,15 +45,27 @@ class Database:
         return str(self.path) == MEMORY
 
     def connect(self) -> sqlite3.Connection:
+        """Open the book.
+
+        A file that is not a database opens without complaint and then fails on
+        the first pragma, so the pragmas run here and a failure closes the
+        connection on the way out. Leaving it open is a resource warning three
+        tests later, against whichever test the collector happened to be in.
+        """
+
         try:
             connection = sqlite3.connect(str(self.path), isolation_level=None)
         except sqlite3.Error as exc:
             raise StoreError(f"could not open {self.path}: {exc}") from exc
         connection.row_factory = sqlite3.Row
-        for pragma in PRAGMAS:
-            connection.execute(pragma)
-        if not self.is_memory:
-            connection.execute("PRAGMA journal_mode = WAL")
+        try:
+            for pragma in PRAGMAS:
+                connection.execute(pragma)
+            if not self.is_memory:
+                connection.execute("PRAGMA journal_mode = WAL")
+        except sqlite3.Error as exc:
+            connection.close()
+            raise StoreError(f"{self.path} is not a book this program can open: {exc}") from exc
         return connection
 
     @contextmanager

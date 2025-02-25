@@ -8,6 +8,7 @@ found would stop the season, so it can go in a cron job and be believed.
 from __future__ import annotations
 
 from datetime import date
+from pathlib import Path
 
 import click
 
@@ -18,6 +19,7 @@ from ..store.audit import (
     problems,
     summarise,
 )
+from ..store.backup import back_up, restore, verify
 from ..store.migrations import describe, pending
 from ..wateryear import parse_day
 from .context import Context
@@ -71,7 +73,44 @@ def _table(findings: tuple[Finding, ...]) -> str:
     return render_table(columns, rows)
 
 
+@click.command("backup")
+@click.argument("destination", type=click.Path(dir_okay=False, path_type=Path))
+@click.pass_obj
+def backup(context: Context, destination: Path) -> None:
+    """Copy the book to another file, through SQLite rather than around it."""
+
+    result = back_up(context.database.path, destination)
+    click.echo(result.describe())
+
+
+@click.command("verify")
+@click.argument("path", type=click.Path(dir_okay=False, path_type=Path))
+def verify_book(path: Path) -> None:
+    """Say whether a file is a book this version can use."""
+
+    sound, complaints = verify(path)
+    if sound:
+        click.echo(f"{path} is sound")
+        return
+    for complaint in complaints:
+        click.echo(f"{path}: {complaint}")
+    raise SystemExit(1)
+
+
+@click.command("restore")
+@click.argument("backup_path", type=click.Path(exists=True, dir_okay=False, path_type=Path))
+@click.pass_obj
+def restore_book(context: Context, backup_path: Path) -> None:
+    """Put a backup back as the district book."""
+
+    result = restore(backup_path, context.database.path)
+    click.echo(f"restored to {result.describe()}")
+
+
 def register(group: click.Group) -> None:
     """Hang the check command off the main group."""
 
     group.add_command(check)
+    group.add_command(backup)
+    group.add_command(verify_book)
+    group.add_command(restore_book)

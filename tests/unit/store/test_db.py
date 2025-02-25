@@ -90,6 +90,13 @@ def test_opening_a_book_in_a_directory_that_is_not_there_is_a_store_error() -> N
         book.connect()
 
 
+def test_a_file_that_is_not_a_book_is_refused_and_closed(tmp_path: Path) -> None:
+    stray = tmp_path / "stray.sqlite3"
+    stray.write_bytes(b"not a database at all")
+    with pytest.raises(StoreError, match="not a book this program can open"):
+        Database(stray).connect()
+
+
 def test_the_connection_is_closed_when_the_block_ends(tmp_path: Path) -> None:
     book = Database(tmp_path / "district.sqlite3")
     with book.open() as connection:

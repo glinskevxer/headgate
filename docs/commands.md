@@ -41,6 +41,12 @@ Take a payment against an account.
 - `--method` How it arrived.
 - `--reference` Cheque number or anything like it.
 
+## headgate backup
+
+Copy the book to another file, through SQLite rather than around it.
+
+- `destination` (argument)
+
 ## headgate call
 
 Calls on the stream, and the notices that answer them.
@@ -385,6 +391,12 @@ The pool and the accounts behind it.
 - `--name` (required) Which reservoir.
 - `--year` (required) Water year.
 
+## headgate restore
+
+Put a backup back as the district book.
+
+- `backup_path` (argument)
+
 ## headgate right
 
 Decreed water rights.
@@ -548,3 +560,9 @@ Record a protest against a published application.
 Publish an application for protest.
 
 - `number` (argument)
+
+## headgate verify
+
+Say whether a file is a book this version can use.
+
+- `path` (argument)
