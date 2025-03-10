@@ -18,6 +18,7 @@ from ..units import MinersInchStandard
 from . import calls as call_commands
 from . import checks as check_commands
 from . import devices as device_commands
+from . import gages as gage_commands
 from . import leases as lease_commands
 from . import orders as order_commands
 from . import readings as reading_commands
@@ -123,6 +124,7 @@ transfer_commands.register(main)
 call_commands.register_commands(main)
 right_commands.register_commands(main)
 lease_commands.register(main)
+gage_commands.register(main)
 
 
 def run() -> int:

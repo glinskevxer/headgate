@@ -165,6 +165,48 @@ Add a turnout to a ditch that is already there.
 - `--capacity` (required) Capacity in cubic feet a second.
 - `--acres` Acres it serves.
 
+## headgate gage
+
+Stream gages and what they recorded.
+
+## headgate gage add
+
+Put a gage on the creek.
+
+- `--code` (required) Gage code, such as SANP-1.
+- `--name` (required) What the gage is called.
+- `--mile` (required) River mile it sits at.
+- `--datum` Datum elevation in feet.
+
+## headgate gage import
+
+Load a published record, all of it or none of it.
+
+- `--code` (required) Which gage.
+- `path` (argument)
+
+## headgate gage list
+
+The gages on the creek, from the top down.
+
+## headgate gage record
+
+Write one day of the gage record.
+
+- `--code` (required) Which gage.
+- `--on` (required) The day.
+- `--mean` (required) Mean flow for the day, in cfs.
+- `--grade` What the record is worth.
+
+## headgate gage show
+
+What the creek did over a span, and where the record has holes.
+
+- `--code` (required) Which gage.
+- `--from` (required) First day to report.
+- `--to` (required) Day after the last one.
+- `--floor` How much of the span has to be there before it totals.
+
 ## headgate init
 
 Set up a new district book.
