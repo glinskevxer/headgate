@@ -476,6 +476,40 @@ One decree, as the book has it.
 
 - `decree` (argument)
 
+## headgate rotation
+
+Taking turns when there is not enough water to go round.
+
+## headgate rotation build
+
+Lay a rotation out from the shares behind each turnout.
+
+- `--year` (required) Water year.
+- `--start` (required) When the first set starts.
+- `--flow` (required) What the lateral has to hand out, in cfs.
+- `--cycle-hours` Hours in one cycle.
+- `--cycles` How many cycles to lay out.
+- `--curtailed` A turnout the commissioner has shut.
+
+## headgate rotation next
+
+When a turnout comes round again.
+
+- `--turnout` (required) Which gate.
+- `--after` The moment to look forward from.
+
+## headgate rotation running
+
+What the rotation says should be running right now.
+
+- `--at` The moment to look at.
+
+## headgate rotation show
+
+The rotation as it stands for a year.
+
+- `--year` (required) Water year.
+
 ## headgate season
 
 Declare and look at the irrigation season.

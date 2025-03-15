@@ -24,6 +24,7 @@ from . import orders as order_commands
 from . import readings as reading_commands
 from . import reports as report_commands
 from . import rights as right_commands
+from . import rotation as rotation_commands
 from . import setup as setup_commands
 from . import storage as storage_commands
 from . import transfers as transfer_commands
@@ -125,6 +126,7 @@ call_commands.register_commands(main)
 right_commands.register_commands(main)
 lease_commands.register(main)
 gage_commands.register(main)
+rotation_commands.register(main)
 
 
 def run() -> int:
