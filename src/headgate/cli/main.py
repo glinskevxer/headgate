@@ -15,6 +15,7 @@ from .. import __version__
 from ..errors import HeadgateError
 from ..store.migrations import current_version, describe, migrate, pending
 from ..units import MinersInchStandard
+from . import allotment as allotment_commands
 from . import calls as call_commands
 from . import checks as check_commands
 from . import devices as device_commands
@@ -127,6 +128,7 @@ right_commands.register_commands(main)
 lease_commands.register(main)
 gage_commands.register(main)
 rotation_commands.register(main)
+allotment_commands.register(main)
 
 
 def run() -> int:

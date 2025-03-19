@@ -41,6 +41,44 @@ Take a payment against an account.
 - `--method` How it arrived.
 - `--reference` Cheque number or anything like it.
 
+## headgate allotment
+
+What a share is worth in a rationed year.
+
+## headgate allotment revise
+
+Raise or cut the allotment, within the rule about raising it late.
+
+- `--year` (required) Water year.
+- `--per-share` (required) The new acre feet a share.
+- `--on` (required) The day the board revised it.
+- `--basis` (required) Why it changed.
+
+## headgate allotment set
+
+Work a supply down to acre feet a share and write it.
+
+- `--year` (required) Water year.
+- `--available` (required) Acre feet the district will hand out.
+- `--basis` (required) What the number was worked out from.
+- `--on` (required) The day the board set it.
+- `--duty` Cap on acre feet a share, if there is one.
+
+## headgate allotment show
+
+The allotment as it stands, and what everybody has left.
+
+- `--year` (required) Water year.
+- `--account` One account only.
+
+## headgate allotment take
+
+Post a delivery against an account's allotment.
+
+- `--year` (required) Water year.
+- `--account` (required) Whose water.
+- `--volume` (required) Acre feet delivered.
+
 ## headgate backup
 
 Copy the book to another file, through SQLite rather than around it.
