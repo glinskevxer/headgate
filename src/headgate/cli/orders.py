@@ -14,10 +14,12 @@ from decimal import Decimal
 
 import click
 
+from ..errors import HeadgateError
 from ..ids import AccountNumber, TurnoutCode
 from ..model.order import WaterOrder
 from ..orders.intake import IntakeRules, answer_order
 from ..store.repo_accounts import load_register
+from ..store.repo_allotment import load_ledger as load_allotment
 from ..store.repo_ditch import load_system
 from ..store.repo_orders import (
     load_book,
@@ -88,14 +90,17 @@ def answer(
             if notice_hours is not None
             else IntakeRules().notice_hours
         )
+        season = season_for(connection, waiting.span.start.date())
+        left = _allotment_left(connection, season.water_year, waiting.account)
         answered = answer_order(
             waiting,
             rules,
             load_register(connection),
-            season_for(connection, waiting.span.start.date()),
+            season,
             load_system(connection),
             load_book(connection, waiting.span),
             Decimal(curtailed_to) if curtailed_to is not None else None,
+            left,
         )
         save_order(connection, answered)
         click.echo(
@@ -137,6 +142,17 @@ def list_orders(context: Context, only_waiting: bool) -> None:
             click.echo("no orders")
             return
         click.echo(_order_table(orders))
+
+
+def _allotment_left(
+    connection: sqlite3.Connection, water_year: int, account: AccountNumber
+) -> Decimal | None:
+    """What the account has left this year, or nothing if it is not a rationed one."""
+
+    try:
+        return load_allotment(connection, water_year).remaining_af(account)
+    except HeadgateError:
+        return None
 
 
 def _order_table(orders: tuple[WaterOrder, ...]) -> str:

@@ -202,3 +202,64 @@ def test_the_same_order_number_cannot_be_received_twice() -> None:
     book, _ = receive(OrderBook(), order(), IntakeRules(), register(), season(), system())
     with pytest.raises(PolicyError, match="already in the book"):
         receive(book, order(), IntakeRules(), register(), season(), system())
+
+
+def test_the_allotment_left_holds_a_long_order_down() -> None:
+    answered = answer(order(rate="6"), curtailed_to=None)
+    assert answered.allowed_cfs == Decimal("5")
+    held = answer_order(
+        order(rate="6"),
+        IntakeRules(),
+        register("20"),
+        season(),
+        system(),
+        OrderBook(),
+        None,
+        Decimal("10"),
+    )
+    assert held.allowed_cfs is not None
+    assert held.allowed_cfs < Decimal("5")
+    assert "of its allotment left" in held.note
+
+
+def test_an_account_with_nothing_left_is_refused() -> None:
+    answered = answer_order(
+        order(),
+        IntakeRules(),
+        register(),
+        season(),
+        system(),
+        OrderBook(),
+        None,
+        Decimal("0"),
+    )
+    assert answered.status is OrderStatus.REFUSED
+    assert "allotment left" in answered.note
+
+
+def test_a_generous_allotment_does_not_bind() -> None:
+    answered = answer_order(
+        order(),
+        IntakeRules(),
+        register(),
+        season(),
+        system(),
+        OrderBook(),
+        None,
+        Decimal("400"),
+    )
+    assert answered.status is OrderStatus.ACCEPTED
+    assert answered.note == "as ordered"
+
+
+def test_the_binding_limit_names_the_allotment_when_it_is_the_smallest() -> None:
+    limit = binding_limit(
+        order(rate="6"),
+        IntakeRules(),
+        register(),
+        system(),
+        OrderBook(),
+        None,
+        Decimal("5"),
+    )
+    assert limit.name == "allotment"
