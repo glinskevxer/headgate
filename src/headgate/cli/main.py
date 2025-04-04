@@ -29,6 +29,7 @@ from . import rotation as rotation_commands
 from . import setup as setup_commands
 from . import storage as storage_commands
 from . import transfers as transfer_commands
+from . import wells as well_commands
 from .context import DEFAULT_BOOK, Context, district_name
 
 STANDARD_NAMES = [item.name.lower() for item in MinersInchStandard]
@@ -129,6 +130,7 @@ lease_commands.register(main)
 gage_commands.register(main)
 rotation_commands.register(main)
 allotment_commands.register(main)
+well_commands.register(main)
 
 
 def run() -> int:

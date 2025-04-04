@@ -680,3 +680,52 @@ Publish an application for protest.
 Say whether a file is a book this version can use.
 
 - `path` (argument)
+
+## headgate well
+
+Supplemental wells and what they take out of the creek.
+
+## headgate well add
+
+Put a well in the book.
+
+- `--id` (required) Well identifier.
+- `--decree` (required) The right it pumps under.
+- `--distance` (required) Feet from the stream.
+- `--storativity` (required) Aquifer storativity.
+- `--transmissivity` (required) Transmissivity in square feet a day.
+- `--capacity` (required) Pump capacity in gallons a minute.
+- `--limit` Annual limit in acre feet, if the decree sets one.
+
+## headgate well cover
+
+Match a well's depletion against the water put back for it.
+
+- `--id` (required) Which well.
+- `--year` (required) Water year.
+- `--through` (required) Month to work the plan to.
+- `--mile` (required) River mile the depletion is felt at.
+- `--source` A source as name:mile:month=af,month=af, one for each replacement.
+- `--kind` What the sources are.
+
+## headgate well depletion
+
+How much of the pumping has reached the creek, and what is owed.
+
+- `--id` (required) Which well.
+- `--year` (required) Water year.
+- `--through` (required) Month to work the depletion to.
+- `--replaced` Acre feet already put back.
+
+## headgate well list
+
+The wells in the book, and how quickly each one reaches the creek.
+
+## headgate well pumped
+
+Record a month's pumping off the meter.
+
+- `--id` (required) Which well.
+- `--year` (required) Water year.
+- `--month` (required) Month the meter covers.
+- `--volume` (required) Acre feet pumped.
