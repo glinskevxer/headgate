@@ -350,3 +350,51 @@ def test_an_account_delivered_nowhere_has_no_statement(district: Path) -> None:
     code, output = run(district, ["report", "account", "--account", "999", "--year", "2025"])
     assert code != 0
     assert "not delivered anywhere" in output
+
+
+def second_season(district: Path) -> None:
+    """Declare and read a second, drier year onto the same gates."""
+
+    from headgate.store.repo_readings import save_reading
+    from headgate.store.repo_season import declare_season
+    from headgate.wateryear import IrrigationSeason
+
+    with Database(district).open() as connection:
+        declare_season(connection, IrrigationSeason.default_for(2026), date(2026, 3, 20))
+        for tag, head in (
+            (f"WEIR-{NEAR}", "0.40"),
+            (f"WEIR-{FAR}", "0.20"),
+            ("FLUME-MAIN", "1.10"),
+        ):
+            save_reading(
+                connection,
+                StaffReading(
+                    device=DeviceTag(tag),
+                    taken_at=datetime(2026, 4, 15, 6),
+                    observer="D. Yardley",
+                    head_feet=Decimal(head),
+                ),
+            )
+
+
+def test_two_seasons_compare(district: Path) -> None:
+    second_season(district)
+    code, output = run(district, ["report", "compare", "--from", "2025", "--to", "2026"])
+    assert code == 0
+    assert "2025 to 2026" in output
+    assert "MAIN-3" in output
+
+
+def test_a_turnout_that_moved_on_its_own_is_flagged(district: Path) -> None:
+    second_season(district)
+    code, output = run(
+        district, ["report", "compare", "--from", "2025", "--to", "2026", "--tolerance", "1"]
+    )
+    assert code == 0
+    assert "against the district" in output
+
+
+def test_comparing_a_year_that_was_never_declared_is_refused(district: Path) -> None:
+    code, output = run(district, ["report", "compare", "--from", "2024", "--to", "2025"])
+    assert code != 0
+    assert "no season" in output

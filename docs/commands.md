@@ -382,6 +382,14 @@ One account's statement for a season.
 - `--as-of` The day to work the balance to.
 - `--due` The day the bill was due.
 
+## headgate report compare
+
+Line two seasons up and say which turnouts moved on their own.
+
+- `--from` (required) The earlier season.
+- `--to` (required) The later season.
+- `--tolerance` Percentage a turnout may move beyond the district before it is flagged.
+
 ## headgate report day
 
 The water commissioner's page for one day.

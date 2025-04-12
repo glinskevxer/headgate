@@ -7,11 +7,13 @@ middle of the season without thinking about it.
 
 from __future__ import annotations
 
+import sqlite3
 from datetime import date, datetime
 from decimal import Decimal
 
 import click
 
+from ..analysis.compare import SeasonTotals, compare
 from ..audit.journal import EntryKind
 from ..carriage.apportion import LossPolicy, apportion, measured_loss
 from ..cli.render import Align, Column, field_list, rate, render_table, volume
@@ -137,6 +139,66 @@ def turnout_report(context: Context, turnout_code: str, run_from: str, run_to: s
             for piece in record.volume.segments
         ]
         click.echo(render_table(columns, rows))
+
+
+@report.command("compare")
+@click.option("--from", "before_year", required=True, type=int, help="The earlier season.")
+@click.option("--to", "after_year", required=True, type=int, help="The later season.")
+@click.option(
+    "--tolerance",
+    default="20",
+    show_default=True,
+    help="Percentage a turnout may move beyond the district before it is flagged.",
+)
+@click.pass_obj
+def compare_seasons(context: Context, before_year: int, after_year: int, tolerance: str) -> None:
+    """Line two seasons up and say which turnouts moved on their own."""
+
+    with context.open_current() as connection:
+        earlier = _season_totals(connection, before_year)
+        later = _season_totals(connection, after_year)
+    found = compare(earlier, later)
+    click.echo(field_list(found.summary()))
+    click.echo()
+    columns = [
+        Column("turnout"),
+        Column(str(before_year), Align.RIGHT),
+        Column(str(after_year), Align.RIGHT),
+        Column("change", Align.RIGHT),
+        Column("against district", Align.RIGHT),
+    ]
+    rows = [
+        [
+            str(item.turnout),
+            volume(item.before_af),
+            volume(item.after_af),
+            f"{item.change}",
+            f"{item.against_the_district}",
+        ]
+        for item in found.changes
+    ]
+    click.echo(render_table(columns, rows))
+    flagged = found.out_of_step(Decimal(tolerance))
+    if not flagged:
+        click.echo("\nevery turnout moved with the district")
+        return
+    click.echo()
+    for item in flagged:
+        click.echo(f"{item.turnout} moved {item.against_the_district} percent against the district")
+
+
+def _season_totals(connection: sqlite3.Connection, water_year: int) -> SeasonTotals:
+    """Total a season out of the book, for a comparison to line up."""
+
+    span = load_season(connection, water_year).as_span()
+    ledger = build_ledger(connection, span)
+    headgate = headgate_volume(connection, span)
+    return SeasonTotals(
+        water_year=water_year,
+        headgate_af=headgate.total_af,
+        delivered_af=ledger.total_af,
+        by_turnout=ledger.volumes(),
+    )
 
 
 @report.command("gaps")
