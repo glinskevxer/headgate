@@ -20,6 +20,7 @@ from ..store.audit import (
     summarise,
 )
 from ..store.backup import back_up, restore, verify
+from ..store.maintenance import analyse, measure, optimise, table_sizes, vacuum
 from ..store.migrations import describe, pending
 from ..wateryear import parse_day
 from .context import Context
@@ -107,6 +108,28 @@ def restore_book(context: Context, backup_path: Path) -> None:
     click.echo(f"restored to {result.describe()}")
 
 
+@click.command("maintain")
+@click.option("--vacuum", "run_vacuum", is_flag=True, help="Rebuild the file as well.")
+@click.pass_obj
+def maintain(context: Context, run_vacuum: bool) -> None:
+    """Give the planner fresh statistics, and tidy the file if it is asked."""
+
+    with context.open_current() as connection:
+        size = measure(connection)
+        analyse(connection)
+        optimise(connection)
+        tables = table_sizes(connection)
+    click.echo(size.describe())
+    for table, rows in list(tables.items())[:5]:
+        click.echo(f"{table}: {rows} rows")
+    if not run_vacuum:
+        if size.is_worth_vacuuming:
+            click.echo("\nthe file is worth vacuuming, run this again with --vacuum")
+        return
+    before = vacuum(context.database.path)
+    click.echo(f"\nrebuilt, {before.bytes_free} bytes were free before it")
+
+
 def register(group: click.Group) -> None:
     """Hang the check command off the main group."""
 
@@ -114,3 +137,4 @@ def register(group: click.Group) -> None:
     group.add_command(backup)
     group.add_command(verify_book)
     group.add_command(restore_book)
+    group.add_command(maintain)

@@ -300,6 +300,12 @@ Offer a lease of this year's water.
 - `--holding` (required) What the lessor has this year, in acre feet.
 - `--on` The day it was offered.
 
+## headgate maintain
+
+Give the planner fresh statistics, and tidy the file if it is asked.
+
+- `--vacuum` Rebuild the file as well.
+
 ## headgate migrate-book
 
 Bring an existing book up to this version.

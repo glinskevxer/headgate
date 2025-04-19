@@ -139,3 +139,16 @@ def test_a_backup_restores_into_a_fresh_book(district: Path, tmp_path: Path) -> 
     assert "restored to" in output
     code, output = run(restored, ["status"])
     assert "Sanpete" in output
+
+
+def test_the_maintain_command_reports_the_book(district: Path) -> None:
+    code, output = run(district, ["maintain"])
+    assert code == 0
+    assert "bytes over" in output
+    assert "rows" in output
+
+
+def test_the_maintain_command_can_rebuild_the_file(district: Path) -> None:
+    code, output = run(district, ["maintain", "--vacuum"])
+    assert code == 0
+    assert "rebuilt" in output
