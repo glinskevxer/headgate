@@ -19,6 +19,7 @@ from datetime import date
 from decimal import Decimal
 from enum import Enum
 
+from ..errors import ValidationError
 from ..ids import DeviceTag, TurnoutCode
 from ..model.account import AccountStatus
 from .db import query
@@ -265,22 +266,28 @@ def unchecked_volume(connection: sqlite3.Connection) -> Decimal:
 
 
 def turnout_codes_in_findings(findings: tuple[Finding, ...]) -> tuple[TurnoutCode, ...]:
-    """The turnouts named in a set of findings, for a report that groups them."""
+    """The turnouts named in a set of findings, for a report that groups them.
+
+    Most subjects are not turnout codes, so the ones that will not parse are
+    dropped rather than complained about.
+    """
 
     codes: list[TurnoutCode] = []
     for finding in findings:
         try:
             codes.append(TurnoutCode(finding.subject))
-        except Exception:  # noqa: BLE001 - most subjects are not turnout codes
+        except ValidationError:
             continue
     return tuple(codes)
 
 
 def device_tags_in_findings(findings: tuple[Finding, ...]) -> tuple[DeviceTag, ...]:
+    """The devices named in a set of findings, dropping what is not a tag."""
+
     tags: list[DeviceTag] = []
     for finding in findings:
         try:
             tags.append(DeviceTag(finding.subject))
-        except Exception:  # noqa: BLE001 - most subjects are not device tags
+        except ValidationError:
             continue
     return tuple(tags)

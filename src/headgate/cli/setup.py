@@ -11,6 +11,7 @@ is not there is caught at the moment somebody types it rather than in July.
 
 from __future__ import annotations
 
+import sqlite3
 from datetime import date
 from decimal import Decimal
 
@@ -18,7 +19,7 @@ import click
 
 from ..assessment.payment import Payment, PaymentMethod
 from ..assessment.tiers import Band, RateSchedule
-from ..errors import NotFoundError, PolicyError
+from ..errors import NotFoundError, PolicyError, ValidationError
 from ..ids import AccountNumber, DitchCode, TurnoutCode
 from ..model.account import Account, AccountStatus, ShareCertificate
 from ..model.ditch import Ditch, DitchSystem, Turnout
@@ -37,10 +38,17 @@ from ..wateryear import IrrigationSeason, parse_day
 from .context import Context
 
 
-def _system_or_empty(connection: object) -> DitchSystem | None:
+def _system_or_empty(connection: sqlite3.Connection) -> DitchSystem | None:
+    """The canal system, or nothing at all if the book has no ditches yet.
+
+    Loading an empty system raises, because a district with no main canal is
+    not a district. That is right everywhere except here, where the whole point
+    is to be adding the first ditch.
+    """
+
     try:
-        return load_system(connection)  # type: ignore[arg-type]
-    except Exception:  # noqa: BLE001 - an empty book raises on validation
+        return load_system(connection)
+    except ValidationError:
         return None
 
 

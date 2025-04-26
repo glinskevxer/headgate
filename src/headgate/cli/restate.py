@@ -12,16 +12,17 @@ it needs the board, and the command says so rather than quietly writing it.
 
 from __future__ import annotations
 
+import sqlite3
 from datetime import date, datetime
 from decimal import Decimal
 
 import click
 
-from ..assessment.billing import bill_account
+from ..assessment.billing import Bill, ChargeKind, bill_account
 from ..assessment.repost import restate as restate_bill
 from ..audit.journal import EntryKind
 from ..errors import PolicyError
-from ..ids import DeviceTag
+from ..ids import AccountNumber, DeviceTag
 from ..measure.recalibration import Rerating, material, restate
 from ..store.assemble import turnout_owners
 from ..store.repo_bills import bills_for_account, save_bill
@@ -102,7 +103,7 @@ def restate_season(
         shares = behind[account]
         schedule = load_schedule(connection, water_year)
         original = _original_bill(connection, account, water_year)
-        delivered = _delivered_from(original)
+        delivered = _quantity_on(original, ChargeKind.WATER)
         replacement = bill_account(
             account=account,
             water_year=water_year,
@@ -110,7 +111,7 @@ def restate_season(
             schedule=schedule,
             shares=shares,
             delivered_af=delivered + found_change.change_af,
-            loss_af=_loss_from(original),
+            loss_af=_quantity_on(original, ChargeKind.DITCH_LOSS),
         )
         restatement = restate_bill(
             original, replacement, reason, issued_day, board_approved=board_approved
@@ -156,29 +157,22 @@ def restate_season(
         click.echo("\nthe reversal and the new bill are written and posted")
 
 
-def _original_bill(connection: object, account: object, water_year: int):  # type: ignore[no-untyped-def]
+def _original_bill(connection: sqlite3.Connection, account: AccountNumber, water_year: int) -> Bill:
+    """The bill the season was closed on, which the restatement answers."""
+
     bills = [
-        item
-        for item in bills_for_account(connection, account)  # type: ignore[arg-type]
-        if item.water_year == water_year
+        item for item in bills_for_account(connection, account) if item.water_year == water_year
     ]
     if not bills:
         raise PolicyError(f"account {account} was never billed for {water_year}")
     return bills[0]
 
 
-def _delivered_from(bill: object) -> Decimal:
-    for line in bill.lines:  # type: ignore[attr-defined]
-        if line.kind.value == "water":
-            return Decimal(line.quantity)
-    return Decimal("0")
+def _quantity_on(bill: Bill, kind: ChargeKind) -> Decimal:
+    """The water a line was measured against, or nothing if it has no line."""
 
-
-def _loss_from(bill: object) -> Decimal:
-    for line in bill.lines:  # type: ignore[attr-defined]
-        if line.kind.value == "ditch_loss":
-            return Decimal(line.quantity)
-    return Decimal("0")
+    line = bill.line_for(kind)
+    return line.quantity if line is not None else Decimal("0")
 
 
 def register(group: click.Group) -> None:

@@ -8,11 +8,12 @@ allocate, which is never quite the same number.
 
 from __future__ import annotations
 
+import sqlite3
 from decimal import Decimal
 
 import click
 
-from ..errors import PolicyError
+from ..errors import NotFoundError, PolicyError
 from ..ids import AccountNumber, DecreeNumber
 from ..model.reservoir import PoolState, Reservoir
 from ..storage.account import allocate
@@ -80,11 +81,17 @@ def fill(context: Context, name: str, day: str, inflow: str) -> None:
             click.echo(f"{volume(filled.spilled_af - pool.spilled_af)} acre feet spilled")
 
 
-def _pool_or_empty(connection: object, name: str, water_year: int) -> PoolState:
+def _pool_or_empty(connection: sqlite3.Connection, name: str, water_year: int) -> PoolState:
+    """The pool as it stands, or an empty one sitting on the dead pool.
+
+    A year nobody has stored water in yet has no row, and the reservoir starts
+    that year at whatever is below the outlet.
+    """
+
     try:
-        return load_pool(connection, name, water_year)  # type: ignore[arg-type]
-    except Exception:  # noqa: BLE001 - a year with no pool starts at the dead pool
-        found = load_reservoir(connection, name)  # type: ignore[arg-type]
+        return load_pool(connection, name, water_year)
+    except NotFoundError:
+        found = load_reservoir(connection, name)
         return PoolState(reservoir=found, water_year=water_year, contents_af=found.dead_pool_af)
 
 
@@ -161,7 +168,7 @@ def show(context: Context, name: str, water_year: int) -> None:
         )
         try:
             book = load_storage_book(connection, name, water_year)
-        except Exception:  # noqa: BLE001 - a year before the allocation has no book
+        except NotFoundError:
             click.echo("\nnothing allocated yet")
             return
         click.echo()

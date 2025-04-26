@@ -12,7 +12,7 @@ from decimal import Decimal
 
 import click
 
-from ..errors import PolicyError
+from ..errors import PolicyError, ValidationError
 from ..ids import DecreeNumber, DitchCode
 from ..model.right import Priority, RightKind, RightStatus, WaterRight
 from ..model.stream import Reach, Stream
@@ -196,7 +196,7 @@ def add_reach(
     with context.open_current() as connection:
         try:
             existing = load_stream(connection, name).reaches
-        except Exception:  # noqa: BLE001 - a creek with no reaches yet
+        except ValidationError:
             existing = ()
         reaches = tuple(sorted((*existing, reach), key=lambda item: -item.head_mile))
         save_stream(connection, Stream(name=name, reaches=reaches))
