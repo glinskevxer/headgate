@@ -34,14 +34,25 @@ REACH_COLUMNS = "code, name, head_mile, toe_mile, mean_velocity_fps, loss_per_mi
 
 
 def save_system(connection: sqlite3.Connection, system: DitchSystem) -> None:
-    """Replace the canal system with this one, in a single write."""
+    """Write the canal system, keeping the rows other tables point at.
+
+    Deleting every ditch and writing them back would be simpler and it breaks
+    the moment anything else references one: a seepage run, a device on the
+    canal, a decree. So each ditch and turnout is written over its old row and
+    only the ones that have genuinely gone are deleted, which is also the point
+    at which the book refuses to drop a ditch something else still needs.
+    """
 
     with transaction(connection):
-        connection.execute("DELETE FROM turnout")
-        connection.execute("DELETE FROM ditch")
         for ditch in _parents_first(system):
             connection.execute(
-                f"INSERT INTO ditch ({DITCH_COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                f"INSERT INTO ditch ({DITCH_COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+                " ON CONFLICT (code) DO UPDATE SET name = excluded.name,"
+                " capacity_cfs = excluded.capacity_cfs, length_feet = excluded.length_feet,"
+                " loss_per_mile = excluded.loss_per_mile,"
+                " parent_code = excluded.parent_code,"
+                " offtake_station_feet = excluded.offtake_station_feet,"
+                " diversion_mile = excluded.diversion_mile",
                 (
                     str(ditch.code),
                     ditch.name,
@@ -55,7 +66,11 @@ def save_system(connection: sqlite3.Connection, system: DitchSystem) -> None:
             )
             for turnout in ditch.turnouts:
                 connection.execute(
-                    f"INSERT INTO turnout ({TURNOUT_COLUMNS}) VALUES (?, ?, ?, ?, ?, ?)",
+                    f"INSERT INTO turnout ({TURNOUT_COLUMNS}) VALUES (?, ?, ?, ?, ?, ?)"
+                    " ON CONFLICT (code) DO UPDATE SET ditch_code = excluded.ditch_code,"
+                    " name = excluded.name, station_feet = excluded.station_feet,"
+                    " capacity_cfs = excluded.capacity_cfs,"
+                    " served_acres = excluded.served_acres",
                     (
                         str(turnout.code),
                         str(ditch.code),
@@ -65,6 +80,16 @@ def save_system(connection: sqlite3.Connection, system: DitchSystem) -> None:
                         decimal_text(turnout.served_acres),
                     ),
                 )
+        keeping_turnouts = {str(item.code) for item in system.all_turnouts()}
+        for row in query(connection, "SELECT code FROM turnout"):
+            code = text_value(row["code"], "turnout.code")
+            if code not in keeping_turnouts:
+                connection.execute("DELETE FROM turnout WHERE code = ?", (code,))
+        keeping_ditches = {str(item.code) for item in system.ditches}
+        for row in query(connection, "SELECT code FROM ditch"):
+            code = text_value(row["code"], "ditch.code")
+            if code not in keeping_ditches:
+                connection.execute("DELETE FROM ditch WHERE code = ?", (code,))
 
 
 def _parents_first(system: DitchSystem) -> list[Ditch]:

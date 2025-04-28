@@ -263,6 +263,20 @@ indexes: `rotation_by_year`
 - `declared_on` TEXT (not null)
 - `note` TEXT (not null)
 
+## seepage_run
+
+- `ditch_code` TEXT (key, not null)
+- `run_on` TEXT (key, not null)
+- `from_station_feet` TEXT (key, not null)
+- `to_station_feet` TEXT (not null)
+- `inflow_cfs` TEXT (not null)
+- `outflow_cfs` TEXT (not null)
+- `turnouts_cfs` TEXT (not null)
+- `flume_error_cfs` TEXT (not null)
+- `note` TEXT (not null)
+
+indexes: `seepage_by_ditch`
+
 ## storage_entry
 
 - `reservoir_name` TEXT (key, not null)
