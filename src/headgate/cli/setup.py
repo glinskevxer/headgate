@@ -23,6 +23,7 @@ from ..errors import NotFoundError, PolicyError, ValidationError
 from ..ids import AccountNumber, DitchCode, TurnoutCode
 from ..model.account import Account, AccountStatus, ShareCertificate
 from ..model.ditch import Ditch, DitchSystem, Turnout
+from ..model.seepage import SeepageRun
 from ..money import Money
 from ..store.repo_accounts import (
     load_account,
@@ -34,8 +35,10 @@ from ..store.repo_ditch import load_system, save_system
 from ..store.repo_payments import account_ledger, take_payment
 from ..store.repo_schedule import adopt
 from ..store.repo_season import declare_season
+from ..store.repo_seepage import adopt_measured_rate, load_history, record_run
 from ..wateryear import IrrigationSeason, parse_day
 from .context import Context
+from .render import field_list
 
 
 def _system_or_empty(connection: sqlite3.Connection) -> DitchSystem | None:
@@ -160,6 +163,90 @@ def list_ditches(context: Context) -> None:
                 f"{item.code}  {item.name}{parent}, {item.length_miles:.2f} miles, "
                 f"{len(item.turnouts)} turnouts"
             )
+
+
+@ditch.command("seepage")
+@click.option("--ditch", "ditch_code", required=True, help="Which ditch was run.")
+@click.option("--on", "run_on", required=True, help="The day of the run.")
+@click.option("--from-station", required=True, help="Station the upper flume sat at.")
+@click.option("--to-station", required=True, help="Station the lower flume sat at.")
+@click.option("--inflow", required=True, help="Upper flume, in cfs.")
+@click.option("--outflow", required=True, help="Lower flume, in cfs.")
+@click.option(
+    "--turnouts", default="0", show_default=True, help="Water running to turnouts during the run."
+)
+@click.option("--error", default="0.05", show_default=True, help="What one flume may be out by.")
+@click.option("--note", default="", help="Anything worth keeping with the run.")
+@click.pass_obj
+def seepage(
+    context: Context,
+    ditch_code: str,
+    run_on: str,
+    from_station: str,
+    to_station: str,
+    inflow: str,
+    outflow: str,
+    turnouts: str,
+    error: str,
+    note: str,
+) -> None:
+    """Record a seepage run down a reach of ditch."""
+
+    run = SeepageRun(
+        ditch=DitchCode.parse(ditch_code),
+        run_on=parse_day(run_on),
+        from_station_feet=Decimal(from_station),
+        to_station_feet=Decimal(to_station),
+        inflow_cfs=Decimal(inflow),
+        outflow_cfs=Decimal(outflow),
+        turnouts_running_cfs=Decimal(turnouts),
+        flume_error_cfs=Decimal(error),
+        note=note,
+    )
+    with context.open_current() as connection:
+        record_run(connection, run)
+    word = "gained" if run.is_gaining else "lost"
+    click.echo(f"{run.ditch} {word} {abs(run.loss_cfs)} cfs over {run.length_miles:.2f} miles")
+    for complaint in run.why_not():
+        click.echo(f"  {complaint}")
+
+
+@ditch.command("loss")
+@click.option("--ditch", "ditch_code", required=True, help="Which ditch.")
+@click.option("--adopt", is_flag=True, help="Put the measured rate on the ditch.")
+@click.pass_obj
+def loss(context: Context, ditch_code: str, adopt: bool) -> None:
+    """What the runs say a ditch loses, and whether to believe them."""
+
+    code = DitchCode.parse(ditch_code)
+    with context.open_current() as connection:
+        history = load_history(connection, code)
+        if not history.runs:
+            click.echo(f"nobody has run a seepage test on {code}")
+            return
+        standing = load_system(connection).ditch(code).loss_fraction_per_mile
+        click.echo(
+            field_list(
+                [
+                    ("ditch", str(code)),
+                    ("runs", str(len(history.runs))),
+                    ("credible", str(len(history.credible))),
+                    ("gaining", str(len(history.gaining))),
+                    ("on the book", f"{standing} a mile"),
+                ]
+            )
+        )
+        if not history.credible:
+            click.echo("\nno run is worth setting a rate from")
+            return
+        measured = history.measured_loss_per_mile()
+        click.echo(f"measured    {measured} a mile")
+        if history.has_got_worse(standing):
+            click.echo("\nthis ditch is losing more than the book says it does")
+        if not adopt:
+            return
+        adopted = adopt_measured_rate(connection, code)
+        click.echo(f"\n{code} now carries {adopted} a mile")
 
 
 @click.group()

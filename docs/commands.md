@@ -192,6 +192,27 @@ Add a ditch to the system.
 
 List the ditches and how many turnouts are on each.
 
+## headgate ditch loss
+
+What the runs say a ditch loses, and whether to believe them.
+
+- `--ditch` (required) Which ditch.
+- `--adopt` Put the measured rate on the ditch.
+
+## headgate ditch seepage
+
+Record a seepage run down a reach of ditch.
+
+- `--ditch` (required) Which ditch was run.
+- `--on` (required) The day of the run.
+- `--from-station` (required) Station the upper flume sat at.
+- `--to-station` (required) Station the lower flume sat at.
+- `--inflow` (required) Upper flume, in cfs.
+- `--outflow` (required) Lower flume, in cfs.
+- `--turnouts` Water running to turnouts during the run.
+- `--error` What one flume may be out by.
+- `--note` Anything worth keeping with the run.
+
 ## headgate ditch turnout
 
 Add a turnout to a ditch that is already there.

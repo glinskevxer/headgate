@@ -476,3 +476,88 @@ def test_adopting_the_same_year_twice_is_refused(book: Path) -> None:
     )
     assert code != 0
     assert "already been adopted" in output
+
+
+def with_lateral(book: Path) -> Path:
+    add_main(book)
+    add_lateral(book)
+    return book
+
+
+def seepage_run(book: Path, outflow: str = "9", turnouts: str = "0") -> tuple[int, str]:
+    return run(
+        book,
+        [
+            "ditch",
+            "seepage",
+            "--ditch",
+            "L2",
+            "--on",
+            "2025-05-20",
+            "--from-station",
+            "0",
+            "--to-station",
+            "5280",
+            "--inflow",
+            "10",
+            "--outflow",
+            outflow,
+            "--turnouts",
+            turnouts,
+            "--note",
+            "two flumes",
+        ],
+    )
+
+
+def test_a_seepage_run_is_recorded(book: Path) -> None:
+    with_lateral(book)
+    code, output = seepage_run(book)
+    assert code == 0
+    assert "lost 1.000 cfs" in output
+
+
+def test_a_gaining_reach_says_so(book: Path) -> None:
+    with_lateral(book)
+    code, output = seepage_run(book, outflow="11")
+    assert code == 0
+    assert "gained 1.000 cfs" in output
+
+
+def test_a_run_with_the_turnouts_open_says_why_it_is_no_good(book: Path) -> None:
+    with_lateral(book)
+    code, output = seepage_run(book, outflow="8.5", turnouts="0.5")
+    assert code == 0
+    assert "running to turnouts" in output
+
+
+def test_the_loss_report_shows_the_runs(book: Path) -> None:
+    with_lateral(book)
+    seepage_run(book)
+    code, output = run(book, ["ditch", "loss", "--ditch", "L2"])
+    assert code == 0
+    assert "measured" in output
+    assert "losing more than the book says" in output
+
+
+def test_adopting_the_measured_rate_changes_the_ditch(book: Path) -> None:
+    with_lateral(book)
+    seepage_run(book)
+    code, output = run(book, ["ditch", "loss", "--ditch", "L2", "--adopt"])
+    assert code == 0
+    assert "now carries" in output
+
+
+def test_a_ditch_nobody_has_run_says_so(book: Path) -> None:
+    with_lateral(book)
+    code, output = run(book, ["ditch", "loss", "--ditch", "L2"])
+    assert code == 0
+    assert "nobody has run a seepage test" in output
+
+
+def test_a_ditch_with_no_credible_run_adopts_nothing(book: Path) -> None:
+    with_lateral(book)
+    seepage_run(book, outflow="9.95")
+    code, output = run(book, ["ditch", "loss", "--ditch", "L2", "--adopt"])
+    assert code == 0
+    assert "no run is worth setting a rate from" in output
