@@ -398,3 +398,72 @@ def test_comparing_a_year_that_was_never_declared_is_refused(district: Path) -> 
     code, output = run(district, ["report", "compare", "--from", "2024", "--to", "2025"])
     assert code != 0
     assert "no season" in output
+
+
+def test_a_season_read_once_shows_the_hours_nobody_accounted_for(district: Path) -> None:
+    code, output = run(district, ["report", "exceptions", "--year", "2025", "--on", "2025-06-01"])
+    assert code == 0
+    assert "unaccounted for" in output
+    assert "costing water" in output
+
+
+def test_a_lapsed_calibration_shows_on_the_exception_report(district: Path) -> None:
+    code, output = run(district, ["report", "exceptions", "--year", "2025", "--on", "2026-06-01"])
+    assert code == 0
+    assert "no calibration stands" in output
+    assert "want doing now" in output
+
+
+def test_a_calibration_about_to_lapse_shows_with_a_lookahead(district: Path) -> None:
+    code, output = run(
+        district,
+        ["report", "exceptions", "--year", "2025", "--on", "2026-01-01", "--lookahead", "120"],
+    )
+    assert code == 0
+    assert "lapses" in output
+
+
+def test_the_exception_report_needs_a_declared_season(district: Path) -> None:
+    code, output = run(district, ["report", "exceptions", "--year", "2024"])
+    assert code != 0
+    assert "no season" in output
+
+
+def test_a_turnout_with_no_device_shows_as_costing_water(district: Path) -> None:
+    from headgate.model.ditch import Turnout
+    from headgate.store.repo_ditch import load_system, save_system
+
+    with Database(district).open() as connection:
+        system = load_system(connection)
+        lateral = system.ditch(DitchCode("L2"))
+        widened = tuple(
+            Ditch(
+                code=item.code,
+                name=item.name,
+                capacity_cfs=item.capacity_cfs,
+                length_feet=item.length_feet,
+                loss_fraction_per_mile=item.loss_fraction_per_mile,
+                turnouts=(
+                    *item.turnouts,
+                    Turnout(
+                        TurnoutCode("L2-30"),
+                        "New gate",
+                        Decimal("9000"),
+                        Decimal("4"),
+                        Decimal("20"),
+                    ),
+                )
+                if item.code == lateral.code
+                else item.turnouts,
+                parent=item.parent,
+                offtake_station_feet=item.offtake_station_feet,
+                diversion_mile=item.diversion_mile,
+            )
+            for item in system.ditches
+        )
+        save_system(connection, DitchSystem(ditches=widened))
+    code, output = run(district, ["report", "exceptions", "--year", "2025", "--on", "2025-06-01"])
+    assert code == 0
+    assert "L2-30" in output
+    assert "nothing was measured" in output
+    assert "costing water" in output

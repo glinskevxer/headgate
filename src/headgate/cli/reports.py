@@ -20,6 +20,7 @@ from ..cli.render import Align, Column, field_list, rate, render_table, volume
 from ..errors import PolicyError
 from ..ids import AccountNumber, DecreeNumber, TurnoutCode
 from ..report.commissioner import build_day
+from ..report.exceptions import build as build_exceptions
 from ..report.ledger import build as ledger_report
 from ..report.season import build
 from ..report.statement import build as build_statement
@@ -31,6 +32,7 @@ from ..store.assemble import (
 )
 from ..store.repo_accounts import load_register
 from ..store.repo_curtail import load_register as load_curtailments
+from ..store.repo_devices import load_devices
 from ..store.repo_ditch import load_system
 from ..store.repo_journal import load_journal
 from ..store.repo_orders import orders_running_at
@@ -365,6 +367,39 @@ def journal(
         Column("note"),
     ]
     click.echo(render_table(columns, built.rows()))
+
+
+@report.command("exceptions")
+@click.option("--year", "water_year", required=True, type=int, help="Season to look at.")
+@click.option("--on", "as_of", default=None, help="The day to report, default today.")
+@click.option(
+    "--lookahead",
+    default=30,
+    show_default=True,
+    help="Days ahead to chase a calibration about to lapse.",
+)
+@click.pass_obj
+def exceptions(context: Context, water_year: int, as_of: str | None, lookahead: int) -> None:
+    """What wants doing this week, worst first."""
+
+    day = parse_day(as_of) if as_of is not None else date.today()
+    with context.open_current() as connection:
+        span = load_season(connection, water_year).as_span()
+        built = build_exceptions(
+            day, build_ledger(connection, span), load_devices(connection), lookahead
+        )
+    if built.is_quiet:
+        click.echo(f"nothing wants doing on {day}")
+        return
+    columns = [
+        Column("when"),
+        Column("subject"),
+        Column("what"),
+        Column("costs water"),
+    ]
+    click.echo(render_table(columns, built.rows()))
+    click.echo()
+    click.echo(f"{len(built.now)} want doing now, {len(built.costing_water)} are costing water")
 
 
 @report.command("running")
