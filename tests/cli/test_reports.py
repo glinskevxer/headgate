@@ -467,3 +467,53 @@ def test_a_turnout_with_no_device_shows_as_costing_water(district: Path) -> None
     assert "L2-30" in output
     assert "nothing was measured" in output
     assert "costing water" in output
+
+
+def place_and_answer(district: Path) -> None:
+    run(
+        district,
+        [
+            "order",
+            "place",
+            "--account",
+            "118",
+            "--turnout",
+            "L2-14",
+            "--rate",
+            "2.5",
+            "--from",
+            "2025-07-01T06:00",
+            "--to",
+            "2025-07-08T06:00",
+            "--placed",
+            "2025-06-28T08:00",
+        ],
+    )
+    run(district, ["order", "answer", "1"])
+
+
+def test_the_run_sheet_turns_a_rate_into_a_staff_setting(district: Path) -> None:
+    place_and_answer(district)
+    code, output = run(
+        district, ["report", "runsheet", "--on", "2025-07-04", "--at", "2025-07-04T12:00"]
+    )
+    assert code == 0
+    assert "L2-14" in output
+    assert "staff" in output
+
+
+def test_a_day_with_nothing_running_says_so(district: Path) -> None:
+    code, output = run(
+        district, ["report", "runsheet", "--on", "2025-07-04", "--at", "2025-07-04T12:00"]
+    )
+    assert code == 0
+    assert "nothing to set" in output
+
+
+def test_the_run_sheet_can_be_taken_off_the_rotation(district: Path) -> None:
+    code, output = run(
+        district,
+        ["report", "runsheet", "--on", "2025-07-04", "--at", "2025-07-04T12:00", "--from-rotation"],
+    )
+    assert code == 0
+    assert "nothing to set" in output

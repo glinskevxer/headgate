@@ -17,11 +17,13 @@ from ..analysis.compare import SeasonTotals, compare
 from ..audit.journal import EntryKind
 from ..carriage.apportion import LossPolicy, apportion, measured_loss
 from ..cli.render import Align, Column, field_list, rate, render_table, volume
-from ..errors import PolicyError
+from ..errors import NotFoundError, PolicyError
 from ..ids import AccountNumber, DecreeNumber, TurnoutCode
+from ..model.device import Device
 from ..report.commissioner import build_day
 from ..report.exceptions import build as build_exceptions
 from ..report.ledger import build as ledger_report
+from ..report.runsheet import build as build_runsheet
 from ..report.season import build
 from ..report.statement import build as build_statement
 from ..store.assemble import (
@@ -32,12 +34,13 @@ from ..store.assemble import (
 )
 from ..store.repo_accounts import load_register
 from ..store.repo_curtail import load_register as load_curtailments
-from ..store.repo_devices import load_devices
+from ..store.repo_devices import device_at_turnout, load_devices
 from ..store.repo_ditch import load_system
 from ..store.repo_journal import load_journal
 from ..store.repo_orders import orders_running_at
 from ..store.repo_payments import account_ledger
 from ..store.repo_rights import load_active_ladder
+from ..store.repo_rotation import running_at as rotation_running_at
 from ..store.repo_season import load_season
 from ..wateryear import Span, parse_day, parse_instant
 from .context import Context, district_name
@@ -367,6 +370,54 @@ def journal(
         Column("note"),
     ]
     click.echo(render_table(columns, built.rows()))
+
+
+@report.command("runsheet")
+@click.option("--on", "day", required=True, help="The day the rider is driving.")
+@click.option("--at", "moment", default=None, help="The moment to read the orders at.")
+@click.option(
+    "--from-rotation", is_flag=True, help="Take the rates off the rotation rather than the orders."
+)
+@click.pass_obj
+def runsheet(context: Context, day: str, moment: str | None, from_rotation: bool) -> None:
+    """What to set today, and to what gauge height."""
+
+    when = parse_day(day)
+    at = (
+        parse_instant(moment)
+        if moment is not None
+        else datetime.combine(when, datetime.min.time()).replace(hour=6)
+    )
+    with context.open_current() as connection:
+        wanted: dict[TurnoutCode, Decimal] = {}
+        if from_rotation:
+            for window in rotation_running_at(connection, at):
+                wanted[window.turnout] = wanted.get(window.turnout, Decimal("0")) + window.rate_cfs
+        else:
+            for order in orders_running_at(connection, at):
+                wanted[order.turnout] = wanted.get(order.turnout, Decimal("0")) + order.running_cfs
+        devices: dict[TurnoutCode, Device] = {}
+        for turnout in wanted:
+            try:
+                devices[turnout] = device_at_turnout(connection, turnout, when)
+            except NotFoundError:
+                continue
+        sheet = build_runsheet(when, wanted, devices)
+    if sheet.is_empty:
+        click.echo(f"nothing to set on {when}")
+        return
+    click.echo(field_list(sheet.summary()))
+    click.echo()
+    columns = [
+        Column("turnout"),
+        Column("rate", Align.RIGHT),
+        Column("device"),
+        Column("staff", Align.RIGHT),
+        Column("note"),
+    ]
+    click.echo(render_table(columns, sheet.rows()))
+    for point in sheet.unsettable:
+        click.echo(f"\n{point.describe()}")
 
 
 @report.command("exceptions")

@@ -454,6 +454,14 @@ What is running right now, off the answered orders.
 
 - `--at` The moment to look at, default now.
 
+## headgate report runsheet
+
+What to set today, and to what gauge height.
+
+- `--on` (required) The day the rider is driving.
+- `--at` The moment to read the orders at.
+- `--from-rotation` Take the rates off the rotation rather than the orders.
+
 ## headgate report season
 
 The season report, headgate to turnout.
