@@ -27,9 +27,9 @@ from decimal import Decimal
 
 from ..errors import PolicyError, ValidationError
 from ..measure.quality import Provenance
-from ..model.parcel import CropCode
+from ..model.parcel import Application, CropCode
 from ..units import round_volume
-from .requirement import Application, net_acre_feet
+from .requirement import net_acre_feet
 
 DEFAULT_STUDY_YEARS = 10
 MINIMUM_COUNTED_YEARS = 5

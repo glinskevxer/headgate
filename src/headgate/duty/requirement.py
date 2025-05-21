@@ -16,31 +16,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from decimal import ROUND_HALF_UP, Decimal
-from enum import Enum
 
 from ..errors import PolicyError, ValidationError
-from ..model.parcel import CropCode
+from ..model.parcel import Application, CropCode
 
 SEASON_MONTHS = (4, 5, 6, 7, 8, 9)
 INCHES_PER_FOOT = Decimal("12")
-
-
-class Application(Enum):
-    """How the water gets from the ditch onto the ground."""
-
-    FLOOD = "flood"
-    WHEEL_LINE = "wheel_line"
-    PIVOT = "pivot"
-    DRIP = "drip"
-
-    @property
-    def efficiency(self) -> Decimal:
-        return {
-            Application.FLOOD: Decimal("0.45"),
-            Application.WHEEL_LINE: Decimal("0.70"),
-            Application.PIVOT: Decimal("0.85"),
-            Application.DRIP: Decimal("0.90"),
-        }[self]
 
 
 @dataclass(frozen=True, slots=True)

@@ -4,7 +4,6 @@ import pytest
 
 from headgate.duty.requirement import (
     REQUIREMENTS,
-    Application,
     MonthlyRequirement,
     gross_acre_feet,
     losses_to_application,
@@ -14,7 +13,7 @@ from headgate.duty.requirement import (
     requirement_for,
 )
 from headgate.errors import ValidationError
-from headgate.model.parcel import CropCode
+from headgate.model.parcel import Application, CropCode
 
 
 def test_every_crop_the_roll_carries_has_a_table() -> None:

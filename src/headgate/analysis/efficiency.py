@@ -12,7 +12,9 @@ tells the office which of its turnouts to look at first.
 
 The comparison is against gross requirement, not net, because the water is
 measured at the turnout and everything between the turnout and the plant is the
-irrigator's own loss.
+irrigator's own loss. Each parcel carries how the water is put on it, so a farm
+that flooded the bottom and ran a pivot on the bench is compared against what
+those two things actually need rather than against one assumption for the lot.
 """
 
 from __future__ import annotations
@@ -21,7 +23,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from decimal import Decimal
 
-from ..duty.requirement import Application, gross_acre_feet
+from ..duty.requirement import gross_acre_feet
 from ..errors import PolicyError, ValidationError
 from ..ids import TurnoutCode
 from ..model.parcel import PlaceOfUse
@@ -125,7 +127,6 @@ def review(
     water_year: int,
     place: PlaceOfUse,
     delivered: Mapping[TurnoutCode, Decimal],
-    application: Application,
     on: object,
 ) -> DutyReview:
     """Line every turnout's water up against the crop behind it."""
@@ -142,7 +143,7 @@ def review(
         for parcel in place.parcels:
             if parcel.turnout != turnout or not parcel.in_production_on(on):
                 continue
-            required += gross_acre_feet(parcel.crop, parcel.irrigated_acres, application)
+            required += gross_acre_feet(parcel.crop, parcel.irrigated_acres, parcel.application)
         duties.append(
             TurnoutDuty(
                 turnout=turnout,

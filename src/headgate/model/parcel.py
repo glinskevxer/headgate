@@ -20,6 +20,29 @@ from ..ids import AccountNumber, TurnoutCode
 PARCEL_PATTERN = re.compile(r"^[0-9]{2}-[0-9]{3}-[0-9]{3}$")
 
 
+class Application(Enum):
+    """How the water gets from the turnout onto the ground.
+
+    It sits on the parcel rather than on the account because a farm can flood
+    the bottom ground and run a pivot on the bench, and the two need different
+    amounts of water at the gate to put the same amount on the crop.
+    """
+
+    FLOOD = "flood"
+    WHEEL_LINE = "wheel_line"
+    PIVOT = "pivot"
+    DRIP = "drip"
+
+    @property
+    def efficiency(self) -> Decimal:
+        return {
+            Application.FLOOD: Decimal("0.45"),
+            Application.WHEEL_LINE: Decimal("0.70"),
+            Application.PIVOT: Decimal("0.85"),
+            Application.DRIP: Decimal("0.90"),
+        }[self]
+
+
 class CropCode(Enum):
     """The crops this district writes on an assessment roll."""
 
@@ -44,6 +67,7 @@ class Parcel:
     turnout: TurnoutCode
     irrigated_acres: Decimal
     crop: CropCode
+    application: Application = Application.FLOOD
     dried_up_on: date | None = None
 
     def __post_init__(self) -> None:

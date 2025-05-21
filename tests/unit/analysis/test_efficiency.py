@@ -4,33 +4,30 @@ from decimal import Decimal
 import pytest
 
 from headgate.analysis.efficiency import DutyReview, TurnoutDuty, review
-from headgate.duty.requirement import Application
 from headgate.errors import PolicyError, ValidationError
 from headgate.ids import AccountNumber, TurnoutCode
-from headgate.model.parcel import CropCode, Parcel, PlaceOfUse
+from headgate.model.parcel import Application, CropCode, Parcel, PlaceOfUse
 
 NEAR = TurnoutCode("L2-14")
 FAR = TurnoutCode("L2-20")
 SEASON = date(2025, 6, 1)
 
 
-def place() -> PlaceOfUse:
+def place(application: Application = Application.FLOOD) -> PlaceOfUse:
     return PlaceOfUse(
         parcels=(
-            Parcel("11-042-001", AccountNumber(118), NEAR, Decimal("40"), CropCode.ALFALFA),
-            Parcel("11-042-002", AccountNumber(212), FAR, Decimal("20"), CropCode.PASTURE),
+            Parcel(
+                "11-042-001", AccountNumber(118), NEAR, Decimal("40"), CropCode.ALFALFA, application
+            ),
+            Parcel(
+                "11-042-002", AccountNumber(212), FAR, Decimal("20"), CropCode.PASTURE, application
+            ),
         )
     )
 
 
 def duty_review(near: str, far: str) -> DutyReview:
-    return review(
-        2025,
-        place(),
-        {NEAR: Decimal(near), FAR: Decimal(far)},
-        Application.FLOOD,
-        SEASON,
-    )
+    return review(2025, place(), {NEAR: Decimal(near), FAR: Decimal(far)}, SEASON)
 
 
 def test_a_turnout_carries_its_ground_and_its_water() -> None:
@@ -89,20 +86,14 @@ def test_the_short_and_generous_turnouts_are_listed() -> None:
 
 
 def test_a_turnout_that_took_water_with_no_ground_behind_it_is_included() -> None:
-    found = review(
-        2025,
-        PlaceOfUse(parcels=()),
-        {NEAR: Decimal("40")},
-        Application.FLOOD,
-        SEASON,
-    )
+    found = review(2025, PlaceOfUse(parcels=()), {NEAR: Decimal("40")}, SEASON)
     assert found.for_turnout(NEAR).required_af == Decimal("0")
     assert found.ratio == Decimal("0")
 
 
 def test_a_more_efficient_method_needs_less_water() -> None:
-    flood = review(2025, place(), {NEAR: Decimal("200")}, Application.FLOOD, SEASON)
-    pivot = review(2025, place(), {NEAR: Decimal("200")}, Application.PIVOT, SEASON)
+    flood = review(2025, place(Application.FLOOD), {NEAR: Decimal("200")}, SEASON)
+    pivot = review(2025, place(Application.PIVOT), {NEAR: Decimal("200")}, SEASON)
     assert pivot.required_af < flood.required_af
 
 
@@ -113,7 +104,7 @@ def test_a_turnout_not_in_the_review_is_refused() -> None:
 
 def test_a_review_needs_a_day_to_work_as_of() -> None:
     with pytest.raises(ValidationError, match="as of a day"):
-        review(2025, place(), {}, Application.FLOOD, "the summer")
+        review(2025, place(), {}, "the summer")
 
 
 def test_the_summary_carries_the_ratio() -> None:

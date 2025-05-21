@@ -9,10 +9,9 @@ from headgate.duty.hcu import (
     return_flow_af,
     transferable_af,
 )
-from headgate.duty.requirement import Application
 from headgate.errors import PolicyError, ValidationError
 from headgate.measure.quality import Provenance
-from headgate.model.parcel import CropCode
+from headgate.model.parcel import Application, CropCode
 
 
 def record(
