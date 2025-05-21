@@ -8,7 +8,7 @@ from headgate.errors import NotFoundError
 from headgate.ids import AccountNumber, DitchCode, TurnoutCode
 from headgate.model.account import Account, AccountStatus, ShareCertificate, ShareRegister
 from headgate.model.ditch import Ditch, DitchSystem, Turnout
-from headgate.model.parcel import CropCode, Parcel, PlaceOfUse
+from headgate.model.parcel import Application, CropCode, Parcel, PlaceOfUse
 from headgate.store.repo_accounts import (
     load_account,
     load_place_of_use,
@@ -181,3 +181,33 @@ def test_drying_up_a_parcel_is_written_back(book: sqlite3.Connection) -> None:
 
 def test_an_empty_book_has_an_empty_place_of_use(book: sqlite3.Connection) -> None:
     assert load_place_of_use(book).parcels == ()
+
+
+def test_a_parcel_keeps_how_the_water_is_put_on_it(book: sqlite3.Connection) -> None:
+    stocked(book)
+    place = PlaceOfUse(
+        parcels=(
+            Parcel(
+                "11-042-001",
+                AccountNumber(118),
+                TurnoutCode("L2-14"),
+                Decimal("40"),
+                CropCode.ALFALFA,
+                Application.PIVOT,
+            ),
+        )
+    )
+    save_place_of_use(book, place)
+    loaded = load_place_of_use(book)
+    assert loaded.parcel("11-042-001").application is Application.PIVOT
+
+
+def test_a_parcel_written_before_the_column_existed_reads_as_flood(
+    book: sqlite3.Connection,
+) -> None:
+    stocked(book)
+    book.execute(
+        "INSERT INTO parcel (parcel_id, account_number, turnout_code, irrigated_acres, crop)"
+        " VALUES ('11-042-009', 118, 'L2-14', '20', 'pasture')"
+    )
+    assert load_place_of_use(book).parcel("11-042-009").application is Application.FLOOD

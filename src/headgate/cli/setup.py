@@ -19,17 +19,22 @@ import click
 
 from ..assessment.payment import Payment, PaymentMethod
 from ..assessment.tiers import Band, RateSchedule
+from ..duty.requirement import gross_acre_feet
 from ..errors import NotFoundError, PolicyError, ValidationError
 from ..ids import AccountNumber, DitchCode, TurnoutCode
 from ..model.account import Account, AccountStatus, ShareCertificate
 from ..model.ditch import Ditch, DitchSystem, Turnout
+from ..model.parcel import Application, CropCode, Parcel
 from ..model.seepage import SeepageRun
 from ..money import Money
 from ..store.repo_accounts import (
     load_account,
+    load_place_of_use,
     load_register,
     save_account,
     save_certificate,
+    save_parcel,
+    save_place_of_use,
 )
 from ..store.repo_ditch import load_system, save_system
 from ..store.repo_payments import account_ledger, take_payment
@@ -349,6 +354,73 @@ def take(
             f"payment {number} of {payment.amount} taken, account {payment.account} owes "
             f"{ledger.balance}"
         )
+
+
+@account.command("parcel")
+@click.option("--parcel", "parcel_id", required=True, help="Assessor's parcel number.")
+@click.option("--account", "account_number", required=True, help="Whose ground it is.")
+@click.option("--turnout", "turnout_code", required=True, help="The gate it is served from.")
+@click.option("--acres", required=True, help="Irrigated acres.")
+@click.option(
+    "--crop",
+    type=click.Choice([item.value for item in CropCode]),
+    default="alfalfa",
+    show_default=True,
+    help="What is growing on it.",
+)
+@click.option(
+    "--application",
+    "method",
+    type=click.Choice([item.value for item in Application]),
+    default="flood",
+    show_default=True,
+    help="How the water is put on.",
+)
+@click.option("--dried-up", default=None, help="The day it went out of production.")
+@click.pass_obj
+def add_parcel(
+    context: Context,
+    parcel_id: str,
+    account_number: str,
+    turnout_code: str,
+    acres: str,
+    crop: str,
+    method: str,
+    dried_up: str | None,
+) -> None:
+    """Put a parcel of ground under a turnout."""
+
+    parcel = Parcel(
+        parcel_id=parcel_id,
+        account=AccountNumber.parse(account_number),
+        turnout=TurnoutCode.parse(turnout_code),
+        irrigated_acres=Decimal(acres),
+        crop=CropCode(crop),
+        application=Application(method),
+        dried_up_on=parse_day(dried_up) if dried_up is not None else None,
+    )
+    with context.open_current() as connection:
+        save_parcel(connection, parcel)
+        needed = gross_acre_feet(parcel.crop, parcel.irrigated_acres, parcel.application)
+        click.echo(
+            f"parcel {parcel.parcel_id} added under {parcel.turnout}, "
+            f"{parcel.irrigated_acres} acres of {parcel.crop.value} wanting "
+            f"{needed:.2f} acre feet at the gate"
+        )
+
+
+@account.command("dry-up")
+@click.option("--parcel", "parcel_id", required=True, help="Which parcel.")
+@click.option("--on", "dried_on", required=True, help="The day it goes dry.")
+@click.pass_obj
+def dry_up(context: Context, parcel_id: str, dried_on: str) -> None:
+    """Take a parcel out of production, which a transfer has to do."""
+
+    with context.open_current() as connection:
+        place = load_place_of_use(connection)
+        dried = place.dry_up(parcel_id, parse_day(dried_on))
+        save_place_of_use(connection, dried)
+        click.echo(f"parcel {parcel_id} is dry from {dried_on}")
 
 
 @account.command("list")

@@ -167,8 +167,9 @@ indexes: `lease_by_lessee`, `lease_by_lessor`, `lease_by_year`
 - `irrigated_acres` TEXT (not null)
 - `crop` TEXT (not null)
 - `dried_up_on` TEXT
+- `application` TEXT (not null)
 
-indexes: `parcel_by_turnout`
+indexes: `parcel_by_account`, `parcel_by_turnout`
 
 ## payment
 

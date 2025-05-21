@@ -15,7 +15,7 @@ from decimal import Decimal
 from ..errors import NotFoundError
 from ..ids import AccountNumber, TurnoutCode
 from ..model.account import Account, AccountStatus, ShareCertificate, ShareRegister
-from ..model.parcel import CropCode, Parcel, PlaceOfUse
+from ..model.parcel import Application, CropCode, Parcel, PlaceOfUse
 from .db import one, query, transaction
 from .serial import (
     date_text,
@@ -34,7 +34,9 @@ from .serial import (
 
 ACCOUNT_COLUMNS = "number, name, joined, status, mailing"
 CERTIFICATE_COLUMNS = "serial, account_number, shares, turnout_code, issued, retired"
-PARCEL_COLUMNS = "parcel_id, account_number, turnout_code, irrigated_acres, crop, dried_up_on"
+PARCEL_COLUMNS = (
+    "parcel_id, account_number, turnout_code, irrigated_acres, crop, application, dried_up_on"
+)
 
 
 def save_account(connection: sqlite3.Connection, account: Account) -> None:
@@ -146,17 +148,18 @@ def shares_outstanding(connection: sqlite3.Connection, on: date) -> Decimal:
 def save_parcel(connection: sqlite3.Connection, parcel: Parcel) -> None:
     with transaction(connection):
         connection.execute(
-            f"INSERT INTO parcel ({PARCEL_COLUMNS}) VALUES (?, ?, ?, ?, ?, ?)"
+            f"INSERT INTO parcel ({PARCEL_COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?)"
             " ON CONFLICT (parcel_id) DO UPDATE SET"
             " account_number = excluded.account_number, turnout_code = excluded.turnout_code,"
             " irrigated_acres = excluded.irrigated_acres, crop = excluded.crop,"
-            " dried_up_on = excluded.dried_up_on",
+            " application = excluded.application, dried_up_on = excluded.dried_up_on",
             (
                 parcel.parcel_id,
                 parcel.account.number,
                 str(parcel.turnout),
                 decimal_text(parcel.irrigated_acres),
                 enum_text(parcel.crop),
+                enum_text(parcel.application),
                 optional_date_text(parcel.dried_up_on),
             ),
         )
@@ -172,6 +175,7 @@ def load_place_of_use(
             turnout=TurnoutCode(text_value(row["turnout_code"], "parcel.turnout_code")),
             irrigated_acres=text_decimal(row["irrigated_acres"], "parcel.irrigated_acres"),
             crop=text_enum(CropCode, row["crop"], "parcel.crop"),
+            application=text_enum(Application, row["application"], "parcel.application"),
             dried_up_on=optional_date(row["dried_up_on"], "parcel.dried_up_on"),
         )
         for row in query(connection, f"SELECT {PARCEL_COLUMNS} FROM parcel ORDER BY parcel_id")

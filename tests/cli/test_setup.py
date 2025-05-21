@@ -561,3 +561,197 @@ def test_a_ditch_with_no_credible_run_adopts_nothing(book: Path) -> None:
     code, output = run(book, ["ditch", "loss", "--ditch", "L2", "--adopt"])
     assert code == 0
     assert "no run is worth setting a rate from" in output
+
+
+def test_a_parcel_is_put_under_a_turnout(book: Path) -> None:
+    with_lateral(book)
+    run(
+        book,
+        [
+            "ditch",
+            "turnout",
+            "--ditch",
+            "L2",
+            "--code",
+            "L2-14",
+            "--name",
+            "Lower gate",
+            "--station",
+            "5280",
+            "--capacity",
+            "6",
+        ],
+    )
+    run(
+        book,
+        ["account", "add", "--number", "118", "--name", "Alma Peterson", "--joined", "1994-03-01"],
+    )
+    code, output = run(
+        book,
+        [
+            "account",
+            "parcel",
+            "--parcel",
+            "11-042-001",
+            "--account",
+            "118",
+            "--turnout",
+            "L2-14",
+            "--acres",
+            "40",
+            "--crop",
+            "alfalfa",
+            "--application",
+            "pivot",
+        ],
+    )
+    assert code == 0
+    assert "40 acres of alfalfa" in output
+    assert "acre feet at the gate" in output
+
+
+def test_a_pivot_wants_less_at_the_gate_than_flood(book: Path) -> None:
+    with_lateral(book)
+    run(
+        book,
+        [
+            "ditch",
+            "turnout",
+            "--ditch",
+            "L2",
+            "--code",
+            "L2-14",
+            "--name",
+            "Lower gate",
+            "--station",
+            "5280",
+            "--capacity",
+            "6",
+        ],
+    )
+    run(
+        book,
+        ["account", "add", "--number", "118", "--name", "Alma Peterson", "--joined", "1994-03-01"],
+    )
+    _, flooded = run(
+        book,
+        [
+            "account",
+            "parcel",
+            "--parcel",
+            "11-042-001",
+            "--account",
+            "118",
+            "--turnout",
+            "L2-14",
+            "--acres",
+            "40",
+            "--application",
+            "flood",
+        ],
+    )
+    _, pivoted = run(
+        book,
+        [
+            "account",
+            "parcel",
+            "--parcel",
+            "11-042-002",
+            "--account",
+            "118",
+            "--turnout",
+            "L2-14",
+            "--acres",
+            "40",
+            "--application",
+            "pivot",
+        ],
+    )
+    assert flooded != pivoted
+
+
+def test_a_parcel_can_be_dried_up(book: Path) -> None:
+    with_lateral(book)
+    run(
+        book,
+        [
+            "ditch",
+            "turnout",
+            "--ditch",
+            "L2",
+            "--code",
+            "L2-14",
+            "--name",
+            "Lower gate",
+            "--station",
+            "5280",
+            "--capacity",
+            "6",
+        ],
+    )
+    run(
+        book,
+        ["account", "add", "--number", "118", "--name", "Alma Peterson", "--joined", "1994-03-01"],
+    )
+    run(
+        book,
+        [
+            "account",
+            "parcel",
+            "--parcel",
+            "11-042-001",
+            "--account",
+            "118",
+            "--turnout",
+            "L2-14",
+            "--acres",
+            "40",
+        ],
+    )
+    code, output = run(book, ["account", "dry-up", "--parcel", "11-042-001", "--on", "2025-07-01"])
+    assert code == 0
+    assert "is dry from 2025-07-01" in output
+
+
+def test_drying_up_a_parcel_twice_is_refused(book: Path) -> None:
+    with_lateral(book)
+    run(
+        book,
+        [
+            "ditch",
+            "turnout",
+            "--ditch",
+            "L2",
+            "--code",
+            "L2-14",
+            "--name",
+            "Lower gate",
+            "--station",
+            "5280",
+            "--capacity",
+            "6",
+        ],
+    )
+    run(
+        book,
+        ["account", "add", "--number", "118", "--name", "Alma Peterson", "--joined", "1994-03-01"],
+    )
+    run(
+        book,
+        [
+            "account",
+            "parcel",
+            "--parcel",
+            "11-042-001",
+            "--account",
+            "118",
+            "--turnout",
+            "L2-14",
+            "--acres",
+            "40",
+        ],
+    )
+    run(book, ["account", "dry-up", "--parcel", "11-042-001", "--on", "2025-07-01"])
+    code, output = run(book, ["account", "dry-up", "--parcel", "11-042-001", "--on", "2025-08-01"])
+    assert code != 0
+    assert "already dry" in output

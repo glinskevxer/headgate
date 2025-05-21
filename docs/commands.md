@@ -15,6 +15,13 @@ Add a shareholder account.
 - `--joined` (required) The day they joined.
 - `--mailing` A line of the mailing address.
 
+## headgate account dry-up
+
+Take a parcel out of production, which a transfer has to do.
+
+- `--parcel` (required) Which parcel.
+- `--on` (required) The day it goes dry.
+
 ## headgate account issue
 
 Issue a share certificate out of the stock book.
@@ -30,6 +37,18 @@ Issue a share certificate out of the stock book.
 List the accounts and what they hold.
 
 - `--on` The day to count shares as of.
+
+## headgate account parcel
+
+Put a parcel of ground under a turnout.
+
+- `--parcel` (required) Assessor's parcel number.
+- `--account` (required) Whose ground it is.
+- `--turnout` (required) The gate it is served from.
+- `--acres` (required) Irrigated acres.
+- `--crop` What is growing on it.
+- `--application` How the water is put on.
+- `--dried-up` The day it went out of production.
 
 ## headgate account pay
 
