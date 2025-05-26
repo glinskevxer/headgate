@@ -444,6 +444,13 @@ The water commissioner's page for one day.
 - `--flow` (required) What the creek was carrying, in cfs.
 - `--taking` A diversion as decree=cfs.
 
+## headgate report duty
+
+What the ground needed against what it got.
+
+- `--year` (required) Season to look at.
+- `--on` The day the ground is counted on.
+
 ## headgate report exceptions
 
 What wants doing this week, worst first.

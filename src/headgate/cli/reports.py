@@ -14,6 +14,7 @@ from decimal import Decimal
 import click
 
 from ..analysis.compare import SeasonTotals, compare
+from ..analysis.efficiency import review as duty_review
 from ..audit.journal import EntryKind
 from ..carriage.apportion import LossPolicy, apportion, measured_loss
 from ..cli.render import Align, Column, field_list, rate, render_table, volume
@@ -32,7 +33,7 @@ from ..store.assemble import (
     turnout_owners,
     turnouts_without_a_device,
 )
-from ..store.repo_accounts import load_register
+from ..store.repo_accounts import load_place_of_use, load_register
 from ..store.repo_curtail import load_register as load_curtailments
 from ..store.repo_devices import device_at_turnout, load_devices
 from ..store.repo_ditch import load_system
@@ -370,6 +371,47 @@ def journal(
         Column("note"),
     ]
     click.echo(render_table(columns, built.rows()))
+
+
+@report.command("duty")
+@click.option("--year", "water_year", required=True, type=int, help="Season to look at.")
+@click.option("--on", "as_of", default=None, help="The day the ground is counted on.")
+@click.pass_obj
+def duty(context: Context, water_year: int, as_of: str | None) -> None:
+    """What the ground needed against what it got."""
+
+    with context.open_current() as connection:
+        season = load_season(connection, water_year)
+        day = parse_day(as_of) if as_of is not None else season.opened
+        ledger = build_ledger(connection, season.as_span())
+        place = load_place_of_use(connection)
+        if not place.parcels:
+            raise PolicyError("no parcels are recorded, so there is no duty to work out")
+        found = duty_review(water_year, place, ledger.volumes(), day)
+    click.echo(field_list(found.summary()))
+    click.echo()
+    columns = [
+        Column("turnout"),
+        Column("acres", Align.RIGHT),
+        Column("needed", Align.RIGHT),
+        Column("delivered", Align.RIGHT),
+        Column("ratio", Align.RIGHT),
+        Column("inches", Align.RIGHT),
+    ]
+    rows = [
+        [
+            str(item.turnout),
+            f"{item.acres}",
+            volume(item.required_af),
+            volume(item.delivered_af),
+            f"{item.ratio}",
+            f"{item.depth_inches}",
+        ]
+        for item in found.duties
+    ]
+    click.echo(render_table(columns, rows))
+    for item in found.short:
+        click.echo(f"\n{item.describe()}")
 
 
 @report.command("runsheet")

@@ -517,3 +517,66 @@ def test_the_run_sheet_can_be_taken_off_the_rotation(district: Path) -> None:
     )
     assert code == 0
     assert "nothing to set" in output
+
+
+def add_parcels(district: Path) -> None:
+    run(
+        district,
+        [
+            "account",
+            "parcel",
+            "--parcel",
+            "11-042-001",
+            "--account",
+            "118",
+            "--turnout",
+            "L2-14",
+            "--acres",
+            "40",
+            "--crop",
+            "alfalfa",
+            "--application",
+            "flood",
+        ],
+    )
+    run(
+        district,
+        [
+            "account",
+            "parcel",
+            "--parcel",
+            "11-042-002",
+            "--account",
+            "118",
+            "--turnout",
+            "MAIN-3",
+            "--acres",
+            "20",
+            "--crop",
+            "pasture",
+            "--application",
+            "pivot",
+        ],
+    )
+
+
+def test_the_duty_report_puts_the_ground_beside_the_water(district: Path) -> None:
+    add_parcels(district)
+    code, output = run(district, ["report", "duty", "--year", "2025"])
+    assert code == 0
+    assert "L2-14" in output
+    assert "needed" in output
+    assert "ratio" in output
+
+
+def test_a_district_with_no_parcels_has_no_duty(district: Path) -> None:
+    code, output = run(district, ["report", "duty", "--year", "2025"])
+    assert code != 0
+    assert "no parcels are recorded" in output
+
+
+def test_a_short_turnout_is_named_on_the_duty_report(district: Path) -> None:
+    add_parcels(district)
+    code, output = run(district, ["report", "duty", "--year", "2025"])
+    assert code == 0
+    assert "short" in output or "about right" in output or "over" in output
