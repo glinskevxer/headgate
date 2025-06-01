@@ -152,3 +152,44 @@ def test_the_maintain_command_can_rebuild_the_file(district: Path) -> None:
     code, output = run(district, ["maintain", "--vacuum"])
     assert code == 0
     assert "rebuilt" in output
+
+
+def test_the_book_exports_as_files(district: Path, tmp_path: Path) -> None:
+    bundle = tmp_path / "bundle"
+    code, output = run(district, ["export", str(bundle)])
+    assert code == 0
+    assert "tables with" in output
+    assert (bundle / "manifest.csv").exists()
+    assert (bundle / "account.csv").exists()
+
+
+def test_a_quiet_export_prints_only_the_summary(district: Path, tmp_path: Path) -> None:
+    code, output = run(district, ["export", str(tmp_path / "bundle"), "--quiet"])
+    assert code == 0
+    assert "rows" in output
+    assert "account:" not in output
+
+
+def test_an_export_will_not_write_over_a_bundle(district: Path, tmp_path: Path) -> None:
+    bundle = tmp_path / "bundle"
+    run(district, ["export", str(bundle)])
+    code, output = run(district, ["export", str(bundle)])
+    assert code != 0
+    assert "already has files" in output
+
+
+def test_a_bundle_checks_out(district: Path, tmp_path: Path) -> None:
+    bundle = tmp_path / "bundle"
+    run(district, ["export", str(bundle)])
+    code, output = run(district, ["check-bundle", str(bundle)])
+    assert code == 0
+    assert "matches its manifest" in output
+
+
+def test_a_tampered_bundle_fails_the_check(district: Path, tmp_path: Path) -> None:
+    bundle = tmp_path / "bundle"
+    run(district, ["export", str(bundle)])
+    (bundle / "account.csv").write_text("number,name\n", encoding="utf-8")
+    code, output = run(district, ["check-bundle", str(bundle)])
+    assert code != 0
+    assert "does not match its checksum" in output

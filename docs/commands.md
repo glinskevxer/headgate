@@ -142,6 +142,12 @@ Read the book over and say what is wrong with it.
 - `--warnings` Print the warnings as well as the problems.
 - `--list-checks` Print what gets checked and stop.
 
+## headgate check-bundle
+
+Check an exported bundle against its own manifest.
+
+- `directory` (argument)
+
 ## headgate device
 
 Structures, their staff gauges and their calibrations.
@@ -242,6 +248,13 @@ Add a turnout to a ditch that is already there.
 - `--station` (required) Feet down the ditch.
 - `--capacity` (required) Capacity in cubic feet a second.
 - `--acres` Acres it serves.
+
+## headgate export
+
+Write the whole book out as CSV files with a manifest.
+
+- `directory` (argument)
+- `--quiet` Print the summary and nothing else.
 
 ## headgate gage
 

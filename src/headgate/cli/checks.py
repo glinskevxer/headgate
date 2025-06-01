@@ -20,6 +20,7 @@ from ..store.audit import (
     summarise,
 )
 from ..store.backup import back_up, restore, verify
+from ..store.export import check_bundle, export_book
 from ..store.maintenance import analyse, measure, optimise, table_sizes, vacuum
 from ..store.migrations import describe, pending
 from ..wateryear import parse_day
@@ -130,6 +131,36 @@ def maintain(context: Context, run_vacuum: bool) -> None:
     click.echo(f"\nrebuilt, {before.bytes_free} bytes were free before it")
 
 
+@click.command("export")
+@click.argument("directory", type=click.Path(file_okay=False, path_type=Path))
+@click.option("--quiet", "quietly", is_flag=True, help="Print the summary and nothing else.")
+@click.pass_obj
+def export(context: Context, directory: Path, quietly: bool) -> None:
+    """Write the whole book out as CSV files with a manifest."""
+
+    with context.open_current() as connection:
+        bundle = export_book(connection, directory)
+    click.echo(bundle.describe())
+    if quietly:
+        return
+    for table in bundle.with_rows:
+        click.echo(f"{table.name}: {table.rows} rows")
+
+
+@click.command("check-bundle")
+@click.argument("directory", type=click.Path(exists=True, file_okay=False, path_type=Path))
+def check_export(directory: Path) -> None:
+    """Check an exported bundle against its own manifest."""
+
+    complaints = check_bundle(directory)
+    if not complaints:
+        click.echo(f"{directory} matches its manifest")
+        return
+    for complaint in complaints:
+        click.echo(f"{directory}: {complaint}")
+    raise SystemExit(1)
+
+
 def register(group: click.Group) -> None:
     """Hang the check command off the main group."""
 
@@ -138,3 +169,5 @@ def register(group: click.Group) -> None:
     group.add_command(verify_book)
     group.add_command(restore_book)
     group.add_command(maintain)
+    group.add_command(export)
+    group.add_command(check_export)
