@@ -65,6 +65,17 @@ indexes: `bill_by_account`, `bill_by_year`
 
 indexes: `certificate_by_account`, `certificate_by_turnout`, `certificate_outstanding`
 
+## command_log
+
+- `entry_id` INTEGER (key)
+- `ran_at` TEXT (not null)
+- `operator` TEXT (not null)
+- `command` TEXT (not null)
+- `arguments` TEXT (not null)
+- `outcome` TEXT (not null)
+
+indexes: `command_log_by_command`, `command_log_by_time`
+
 ## curtailment_notice
 
 - `decree` TEXT (key, not null)
