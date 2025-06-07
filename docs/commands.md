@@ -353,6 +353,13 @@ Offer a lease of this year's water.
 - `--holding` (required) What the lessor has this year, in acre feet.
 - `--on` The day it was offered.
 
+## headgate log
+
+What has been run against this book.
+
+- `--limit` How many lines to print.
+- `--command` One command only.
+
 ## headgate maintain
 
 Give the planner fresh statistics, and tidy the file if it is asked.

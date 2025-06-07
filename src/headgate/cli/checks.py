@@ -23,6 +23,7 @@ from ..store.backup import back_up, restore, verify
 from ..store.export import check_bundle, export_book
 from ..store.maintenance import analyse, measure, optimise, table_sizes, vacuum
 from ..store.migrations import describe, pending
+from ..store.repo_log import count_entries, for_command, recent
 from ..wateryear import parse_day
 from .context import Context
 from .render import Align, Column, render_table
@@ -131,6 +132,29 @@ def maintain(context: Context, run_vacuum: bool) -> None:
     click.echo(f"\nrebuilt, {before.bytes_free} bytes were free before it")
 
 
+@click.command("log")
+@click.option("--limit", default=20, show_default=True, help="How many lines to print.")
+@click.option("--command", "only_command", default=None, help="One command only.")
+@click.pass_obj
+def show_log(context: Context, limit: int, only_command: str | None) -> None:
+    """What has been run against this book."""
+
+    with context.open_current() as connection:
+        entries = (
+            for_command(connection, only_command)
+            if only_command is not None
+            else recent(connection, limit)
+        )
+        total = count_entries(connection)
+    if not entries:
+        click.echo("nothing has been run against this book yet")
+        return
+    for entry in entries:
+        marker = "" if entry.outcome.changed_the_book else "  (refused)"
+        click.echo(f"{entry.describe()}{marker}")
+    click.echo(f"\n{total} commands logged")
+
+
 @click.command("export")
 @click.argument("directory", type=click.Path(file_okay=False, path_type=Path))
 @click.option("--quiet", "quietly", is_flag=True, help="Print the summary and nothing else.")
@@ -170,4 +194,5 @@ def register(group: click.Group) -> None:
     group.add_command(restore_book)
     group.add_command(maintain)
     group.add_command(export)
+    group.add_command(show_log)
     group.add_command(check_export)

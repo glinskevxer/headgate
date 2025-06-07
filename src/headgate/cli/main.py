@@ -14,6 +14,7 @@ import click
 from .. import __version__
 from ..errors import HeadgateError
 from ..store.migrations import current_version, describe, migrate, pending
+from ..store.repo_log import Outcome, record
 from ..units import MinersInchStandard
 from . import allotment as allotment_commands
 from . import calls as call_commands
@@ -35,18 +36,74 @@ from .context import DEFAULT_BOOK, Context, district_name
 STANDARD_NAMES = [item.name.lower() for item in MinersInchStandard]
 
 
+READ_ONLY_COMMANDS = frozenset(
+    {"report", "check", "status", "verify", "check-bundle", "--help", "--version"}
+)
+
+
 class DistrictGroup(click.Group):
     """A group that reports a deliberate failure the way click reports its own.
 
     Without this a PolicyError leaves the command line with a traceback, which
     tells a ditch rider nothing and tells a shell script nothing either.
+
+    It also writes the command to the book's log on the way past. Three people
+    share a district book and the question after a bad season is always what
+    was run and by whom, which a shell history on one person's machine does not
+    answer.
     """
 
     def invoke(self, ctx: click.Context) -> object:
+        words = [*ctx.protected_args, *ctx.args]
         try:
-            return super().invoke(ctx)
+            result = super().invoke(ctx)
         except HeadgateError as exc:
+            _log(ctx, words, Outcome.REFUSED)
             raise click.ClickException(str(exc)) from exc
+        _log(ctx, words, Outcome.DONE)
+        return result
+
+
+def _split(group: click.Group, ctx: click.Context, words: list[str]) -> tuple[str, str]:
+    """The command somebody ran, and what they gave it.
+
+    A top level command with an argument of its own looks exactly like a group
+    and its subcommand from the outside, so the command tree decides which it
+    is rather than the shape of the words.
+    """
+
+    named = [word for word in words if not word.startswith("-")]
+    if not named:
+        return "", " ".join(words)
+    first = group.get_command(ctx, named[0])
+    depth = 2 if isinstance(first, click.Group) and len(named) > 1 else 1
+    command = " ".join(named[:depth])
+    rest = [word for word in words if word not in named[:depth]]
+    return command, " ".join(rest)
+
+
+def _is_worth_logging(command: str) -> bool:
+    if not command:
+        return False
+    return command.split()[0] not in READ_ONLY_COMMANDS
+
+
+def _log(ctx: click.Context, words: list[str], outcome: Outcome) -> None:
+    """Write the command to the book, if there is a book to write it to."""
+
+    command, arguments = _split(main, ctx, words)
+    if not _is_worth_logging(command):
+        return
+    context = ctx.obj
+    if not isinstance(context, Context) or not context.database.path.exists():
+        return
+    try:
+        with context.open() as connection:
+            if current_version(connection) == 0:
+                return
+            record(connection, command, arguments, outcome)
+    except HeadgateError:
+        return
 
 
 @click.group(cls=DistrictGroup)

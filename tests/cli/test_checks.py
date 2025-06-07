@@ -193,3 +193,75 @@ def test_a_tampered_bundle_fails_the_check(district: Path, tmp_path: Path) -> No
     code, output = run(district, ["check-bundle", str(bundle)])
     assert code != 0
     assert "does not match its checksum" in output
+
+
+def test_a_command_that_changes_the_book_is_logged(district: Path) -> None:
+    run(
+        district,
+        ["account", "add", "--number", "212", "--name", "Ruth Larsen", "--joined", "1998-05-01"],
+    )
+    code, output = run(district, ["log"])
+    assert code == 0
+    assert "account add" in output
+    assert "commands logged" in output
+
+
+def test_a_report_is_not_logged(district: Path) -> None:
+    run(district, ["check", "--on", "2025-06-01"])
+    code, output = run(district, ["log"])
+    assert code == 0
+    assert "check" not in output
+
+
+def test_setting_the_book_up_is_logged_as_one_command(district: Path) -> None:
+    code, output = run(district, ["log"])
+    assert code == 0
+    assert "init --name" in output
+
+
+def test_a_refused_command_is_logged_as_refused(district: Path) -> None:
+    run(
+        district,
+        ["account", "add", "--number", "212", "--name", "Ruth Larsen", "--joined", "1998-05-01"],
+    )
+    run(
+        district,
+        ["account", "add", "--number", "212", "--name", "Ruth Larsen", "--joined", "not a date"],
+    )
+    code, output = run(district, ["log"])
+    assert code == 0
+    assert "refused" in output
+
+
+def test_the_log_can_be_cut_to_one_command(district: Path) -> None:
+    run(
+        district,
+        ["account", "add", "--number", "212", "--name", "Ruth Larsen", "--joined", "1998-05-01"],
+    )
+    run(
+        district,
+        ["account", "add", "--number", "300", "--name", "Nobody", "--joined", "2001-05-01"],
+    )
+    code, output = run(district, ["log", "--command", "account add"])
+    assert code == 0
+    assert output.count("account add") == 2
+
+
+def test_the_log_can_be_cut_short(district: Path) -> None:
+    for number in ("212", "300", "401"):
+        run(
+            district,
+            [
+                "account",
+                "add",
+                "--number",
+                number,
+                "--name",
+                f"Holder {number}",
+                "--joined",
+                "1998-05-01",
+            ],
+        )
+    code, output = run(district, ["log", "--limit", "1"])
+    assert code == 0
+    assert output.count("account add") == 1
