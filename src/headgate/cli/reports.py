@@ -21,6 +21,7 @@ from ..cli.render import Align, Column, field_list, rate, render_table, volume
 from ..errors import NotFoundError, PolicyError
 from ..ids import AccountNumber, DecreeNumber, TurnoutCode
 from ..model.device import Device
+from ..report.board import build as build_packet
 from ..report.commissioner import build_day
 from ..report.exceptions import build as build_exceptions
 from ..report.ledger import build as ledger_report
@@ -34,6 +35,7 @@ from ..store.assemble import (
     turnouts_without_a_device,
 )
 from ..store.repo_accounts import load_place_of_use, load_register
+from ..store.repo_bills import load_run
 from ..store.repo_curtail import load_register as load_curtailments
 from ..store.repo_devices import device_at_turnout, load_devices
 from ..store.repo_ditch import load_system
@@ -371,6 +373,59 @@ def journal(
         Column("note"),
     ]
     click.echo(render_table(columns, built.rows()))
+
+
+@report.command("board")
+@click.option("--year", "water_year", required=True, type=int, help="Season to report.")
+@click.option("--on", "as_of", default=None, help="The day the packet is dated.")
+@click.option(
+    "--proved-floor",
+    default="0.9",
+    show_default=True,
+    help="How much of the season has to be proved before adopting it.",
+)
+@click.pass_obj
+def board(context: Context, water_year: int, as_of: str | None, proved_floor: str) -> None:
+    """The packet the board reads before it adopts a season."""
+
+    day = parse_day(as_of) if as_of is not None else date.today()
+    with context.open_current() as connection:
+        season = load_season(connection, water_year)
+        span = season.as_span()
+        ledger = build_ledger(connection, span)
+        volumes = ledger.volumes()
+        headgate = headgate_volume(connection, span)
+        system = load_system(connection)
+        split = apportion(
+            volumes, measured_loss(headgate.total_af, volumes), LossPolicy.BY_LEG, system=system
+        )
+        built = build(
+            water_year,
+            district_name(connection) or "this district",
+            ledger,
+            split,
+            headgate.total_af,
+            system,
+        )
+        packet = build_packet(
+            built,
+            load_run(connection, water_year),
+            build_exceptions(day, ledger, load_devices(connection)),
+            Decimal(proved_floor),
+        )
+    click.echo(field_list(packet.summary()))
+    for name, rows in packet.sections():
+        if not rows:
+            continue
+        click.echo(f"\n{name}")
+        for row in rows:
+            click.echo("  " + "  ".join(row))
+    if packet.can_be_adopted:
+        click.echo("\nthis season is worth adopting as it stands")
+        return
+    click.echo("\nthis season is not worth adopting yet:")
+    for reason in packet.reasons_not_to_adopt():
+        click.echo(f"  {reason}")
 
 
 @report.command("duty")

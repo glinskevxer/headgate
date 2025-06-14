@@ -364,3 +364,28 @@ def test_restating_off_a_canal_device_is_refused(district: Path) -> None:
     )
     assert code != 0
     assert "not a turnout" in output
+
+
+def test_the_board_packet_reads_after_a_close(district: Path) -> None:
+    closed(district)
+    code, output = run(district, ["report", "board", "--year", "2025", "--on", "2025-11-01"])
+    assert code == 0
+    assert "recommend adopting" in output
+    assert "deliveries" in output
+    assert "assessment" in output
+
+
+def test_the_board_packet_needs_a_season_that_was_billed(district: Path) -> None:
+    code, output = run(district, ["report", "board", "--year", "2025"])
+    assert code != 0
+    assert "no bill run" in output
+
+
+def test_a_low_floor_lets_a_thin_season_be_adopted(district: Path) -> None:
+    closed(district)
+    code, output = run(
+        district,
+        ["report", "board", "--year", "2025", "--on", "2025-11-01", "--proved-floor", "0.1"],
+    )
+    assert code == 0
+    assert "worth adopting" in output

@@ -448,6 +448,14 @@ One account's statement for a season.
 - `--as-of` The day to work the balance to.
 - `--due` The day the bill was due.
 
+## headgate report board
+
+The packet the board reads before it adopts a season.
+
+- `--year` (required) Season to report.
+- `--on` The day the packet is dated.
+- `--proved-floor` How much of the season has to be proved before adopting it.
+
 ## headgate report compare
 
 Line two seasons up and say which turnouts moved on their own.
