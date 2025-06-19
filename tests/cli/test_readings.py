@@ -206,3 +206,88 @@ def test_an_empty_file_is_refused(tmp_path: Path) -> None:
     path.write_text("", encoding="utf-8")
     with pytest.raises(ValidationError, match="no header row"):
         read_rows(path)
+
+
+def logger_file(tmp_path: Path, rows: list[str]) -> Path:
+    path = tmp_path / "logger.csv"
+    path.write_text("taken_at,head,battery\n" + "\n".join(rows) + "\n", encoding="utf-8")
+    return path
+
+
+def steady_rows(count: int = 48, head: str = "0.60", battery: str = "12.4") -> list[str]:
+    from datetime import datetime, timedelta
+
+    start = datetime(2025, 6, 1, 6)
+    return [
+        f"{(start + timedelta(minutes=15 * index)):%Y-%m-%dT%H:%M},{head},{battery}"
+        for index in range(count)
+    ]
+
+
+def test_a_logger_file_is_thinned_into_the_book(book: Path, tmp_path: Path) -> None:
+    path = logger_file(tmp_path, steady_rows())
+    code, output = run(book, ["reading", "logger", "--device", "WEIR-L2-14", str(path)])
+    assert code == 0
+    assert "48 samples" in output
+    assert "readings written" in output
+
+
+def test_a_dry_run_of_a_logger_file_writes_nothing(book: Path, tmp_path: Path) -> None:
+    path = logger_file(tmp_path, steady_rows())
+    code, output = run(
+        book, ["reading", "logger", "--device", "WEIR-L2-14", str(path), "--dry-run"]
+    )
+    assert code == 0
+    assert "this was a dry run" in output
+    _, listed = run(book, ["reading", "list", "WEIR-L2-14"])
+    assert "nobody has read" in listed
+
+
+def test_a_spike_is_dropped_before_the_book_sees_it(book: Path, tmp_path: Path) -> None:
+    rows = steady_rows(4)
+    rows.insert(2, "2025-06-01T06:20,3.40,12.4")
+    path = logger_file(tmp_path, sorted(rows))
+    code, output = run(book, ["reading", "logger", "--device", "WEIR-L2-14", str(path)])
+    assert code == 0
+    assert "spikes dropped" in output
+
+
+def test_a_flatlined_sensor_is_reported(book: Path, tmp_path: Path) -> None:
+    path = logger_file(tmp_path, steady_rows(count=300))
+    code, output = run(
+        book, ["reading", "logger", "--device", "WEIR-L2-14", str(path), "--dry-run"]
+    )
+    assert code == 0
+    assert "same number for two days" in output
+
+
+def test_a_low_battery_is_reported(book: Path, tmp_path: Path) -> None:
+    path = logger_file(tmp_path, steady_rows(battery="10.9"))
+    code, output = run(
+        book, ["reading", "logger", "--device", "WEIR-L2-14", str(path), "--dry-run"]
+    )
+    assert code == 0
+    assert "low battery" in output
+
+
+def test_a_file_with_no_timestamp_column_is_refused(book: Path, tmp_path: Path) -> None:
+    path = tmp_path / "logger.csv"
+    path.write_text("head\n0.60\n", encoding="utf-8")
+    code, output = run(book, ["reading", "logger", "--device", "WEIR-L2-14", str(path)])
+    assert code != 0
+    assert "no taken_at column" in output
+
+
+def test_a_file_with_no_samples_is_refused(book: Path, tmp_path: Path) -> None:
+    path = logger_file(tmp_path, [])
+    code, output = run(book, ["reading", "logger", "--device", "WEIR-L2-14", str(path)])
+    assert code != 0
+    assert "header and no samples" in output
+
+
+def test_loading_the_same_file_twice_writes_nothing_new(book: Path, tmp_path: Path) -> None:
+    path = logger_file(tmp_path, steady_rows())
+    run(book, ["reading", "logger", "--device", "WEIR-L2-14", str(path)])
+    code, output = run(book, ["reading", "logger", "--device", "WEIR-L2-14", str(path)])
+    assert code == 0
+    assert "0 readings written" in output

@@ -435,6 +435,16 @@ Every reading on one device, oldest first.
 
 - `device_tag` (argument)
 
+## headgate reading logger
+
+Load a datalogger's file, thinned and with the spikes dropped.
+
+- `--device` (required) Which device the logger is on.
+- `path` (argument)
+- `--every` Hours between the samples that go in the book.
+- `--rise-limit` Feet an hour beyond which a jump is a spike, not a rise.
+- `--dry-run` Say what would be loaded and write nothing.
+
 ## headgate report
 
 Print what the book says.

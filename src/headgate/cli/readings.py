@@ -16,9 +16,10 @@ from pathlib import Path
 
 import click
 
-from ..errors import PolicyError, ValidationError
+from ..errors import ConflictError, PolicyError, ValidationError
 from ..ids import DeviceTag
 from ..measure.quality import rate_reading
+from ..measure.telemetry import Sample, SampleRun
 from ..model.reading import ReadingMethod, StaffReading
 from ..store.repo_devices import load_device
 from ..store.repo_readings import count_readings, load_series, save_reading
@@ -183,6 +184,73 @@ def import_readings(context: Context, path: Path, dry_run: bool) -> None:
             save_reading(connection, row.reading)
         written = count_readings(connection) - before
         click.echo(f"{written} readings loaded from {path}")
+
+
+@reading.command("logger")
+@click.option("--device", "device_tag", required=True, help="Which device the logger is on.")
+@click.argument("path", type=click.Path(exists=True, dir_okay=False, path_type=Path))
+@click.option(
+    "--every", default="6", show_default=True, help="Hours between the samples that go in the book."
+)
+@click.option(
+    "--rise-limit",
+    default="1.5",
+    show_default=True,
+    help="Feet an hour beyond which a jump is a spike, not a rise.",
+)
+@click.option("--dry-run", is_flag=True, help="Say what would be loaded and write nothing.")
+@click.pass_obj
+def logger(
+    context: Context,
+    device_tag: str,
+    path: Path,
+    every: str,
+    rise_limit: str,
+    dry_run: bool,
+) -> None:
+    """Load a datalogger's file, thinned and with the spikes dropped."""
+
+    tag = DeviceTag.parse(device_tag)
+    samples: list[Sample] = []
+    with path.open(newline="", encoding="utf-8") as handle:
+        entries = csv.DictReader(handle)
+        if entries.fieldnames is None or "taken_at" not in entries.fieldnames:
+            raise ValidationError(f"{path} has no taken_at column")
+        for line, entry in enumerate(entries, start=2):
+            head = _decimal(entry.get("head"), "head", line)
+            if head is None:
+                raise ValidationError(f"line {line}: the logger reported no head")
+            samples.append(
+                Sample(
+                    device=tag,
+                    taken_at=parse_instant(entry["taken_at"]),
+                    head_feet=head,
+                    battery_volts=_decimal(entry.get("battery"), "battery", line),
+                )
+            )
+    if not samples:
+        raise PolicyError(f"{path} has a header and no samples")
+    run = SampleRun(device=tag, samples=tuple(samples))
+    spikes = run.spikes(Decimal(rise_limit))
+    keeping = run.readings(every_hours=Decimal(every), limit=Decimal(rise_limit))
+    click.echo(f"{len(run.samples)} samples, {len(spikes)} spikes dropped, {len(keeping)} kept")
+    if run.is_flatlined():
+        click.echo("this sensor has been reporting the same number for two days")
+    if run.low_battery():
+        click.echo(f"{len(run.low_battery())} samples came in on a low battery")
+    if dry_run:
+        click.echo("nothing written, this was a dry run")
+        return
+    with context.open_current() as connection:
+        load_device(connection, tag)
+        written = 0
+        for taken in keeping:
+            try:
+                save_reading(connection, taken)
+            except ConflictError:
+                continue
+            written += 1
+    click.echo(f"{written} readings written to the book")
 
 
 def register(group: click.Group) -> None:
