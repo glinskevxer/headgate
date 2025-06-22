@@ -100,3 +100,16 @@ def test_the_group_prints_help_without_touching_a_book(tmp_path: Path) -> None:
     assert code == 0
     assert "Water accounting for a ditch company" in output
     assert not (tmp_path / "nothing.sqlite3").exists()
+
+
+def test_the_about_command_names_the_book_and_the_schema(tmp_path: Path) -> None:
+    book = tmp_path / "district.sqlite3"
+    code, output = run(["about"], book)
+    assert code == 0
+    assert __version__ in output
+    assert str(book) in output
+    assert "schema this version expects" in output
+
+
+def test_the_version_moved_with_the_package() -> None:
+    assert __version__ == "0.9.0"

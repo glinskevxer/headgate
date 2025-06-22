@@ -13,7 +13,7 @@ import click
 
 from .. import __version__
 from ..errors import HeadgateError
-from ..store.migrations import current_version, describe, migrate, pending
+from ..store.migrations import current_version, describe, latest_available, migrate, pending
 from ..store.repo_log import Outcome, record
 from ..units import MinersInchStandard
 from . import allotment as allotment_commands
@@ -155,6 +155,16 @@ def migrate_book(context: Context) -> None:
             return
         applied = migrate(connection)
         click.echo(f"applied {len(applied)} migrations, now {describe(connection)}")
+
+
+@main.command()
+@click.pass_obj
+def about(context: Context) -> None:
+    """What this program is and what book it is pointed at."""
+
+    click.echo(f"headgate {__version__}, water accounting for a ditch company")
+    click.echo(f"book: {context.database.path}")
+    click.echo(f"schema this version expects: {latest_available()}")
 
 
 @main.command()

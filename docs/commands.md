@@ -2,6 +2,10 @@
 
 This file is generated from the command line by `python -m headgate.tools.build_docs`. Do not edit it by hand.
 
+## headgate about
+
+What this program is and what book it is pointed at.
+
 ## headgate account
 
 Shareholders and their certificates.
