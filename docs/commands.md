@@ -566,6 +566,15 @@ Put a reservoir in the book.
 - `--capacity` (required) Capacity in acre feet.
 - `--dead-pool` Acre feet below the outlet.
 
+## headgate reservoir carryover
+
+Roll what is left in the pool and the accounts into the next year.
+
+- `--name` (required) Which reservoir.
+- `--from` (required) The year ending.
+- `--to` (required) The year starting.
+- `--cap` Acre feet an account may carry over.
+
 ## headgate reservoir draw
 
 Release water against one account's storage.

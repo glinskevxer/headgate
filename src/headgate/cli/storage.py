@@ -142,6 +142,39 @@ def draw(context: Context, name: str, water_year: int, account_number: str, want
         )
 
 
+@reservoir.command("carryover")
+@click.option("--name", required=True, help="Which reservoir.")
+@click.option("--from", "from_year", required=True, type=int, help="The year ending.")
+@click.option("--to", "to_year", required=True, type=int, help="The year starting.")
+@click.option("--cap", default=None, help="Acre feet an account may carry over.")
+@click.pass_obj
+def carryover(context: Context, name: str, from_year: int, to_year: int, cap: str | None) -> None:
+    """Roll what is left in the pool and the accounts into the next year."""
+
+    limit = Decimal(cap) if cap is not None else None
+    with context.open_current() as connection:
+        pool = load_pool(connection, name, from_year)
+        rolled = pool.carry_over(to_year)
+        save_pool(connection, rolled)
+        try:
+            book = load_storage_book(connection, name, from_year)
+        except NotFoundError:
+            click.echo(
+                f"{name} carried {volume(rolled.usable_af)} acre feet into {to_year}, "
+                "with nothing allocated behind it"
+            )
+            return
+        carried = book.carry_over(to_year, limit)
+        save_storage_book(connection, name, carried)
+        lost = volume(book.total_balance_af - carried.total_balance_af)
+        click.echo(
+            f"{name} carried {volume(carried.total_balance_af)} acre feet into {to_year} "
+            f"across {len(carried.entries)} accounts"
+        )
+        if book.total_balance_af > carried.total_balance_af:
+            click.echo(f"{lost} acre feet were over the cap and are gone")
+
+
 @reservoir.command("show")
 @click.option("--name", required=True, help="Which reservoir.")
 @click.option("--year", "water_year", required=True, type=int, help="Water year.")

@@ -298,3 +298,113 @@ def test_showing_a_year_with_no_pool_is_refused(district: Path) -> None:
     )
     assert code != 0
     assert "no pool" in output
+
+
+def filled_and_allocated(district: Path) -> None:
+    build(district)
+    run(
+        district,
+        [
+            "reservoir",
+            "fill",
+            "--name",
+            "Ephraim Reservoir",
+            "--on",
+            "2025-04-01",
+            "--inflow",
+            "1700",
+        ],
+    )
+    run(
+        district,
+        [
+            "reservoir",
+            "allocate",
+            "--name",
+            "Ephraim Reservoir",
+            "--year",
+            "2025",
+            "--on",
+            "2025-04-15",
+        ],
+    )
+
+
+def test_the_pool_and_the_accounts_carry_into_the_next_year(district: Path) -> None:
+    filled_and_allocated(district)
+    code, output = run(
+        district,
+        ["reservoir", "carryover", "--name", "Ephraim Reservoir", "--from", "2025", "--to", "2026"],
+    )
+    assert code == 0
+    assert "carried" in output
+    assert "2 accounts" in output
+    code, output = run(
+        district, ["reservoir", "show", "--name", "Ephraim Reservoir", "--year", "2026"]
+    )
+    assert code == 0
+    assert "00118" in output
+
+
+def test_water_over_the_cap_is_lost_on_the_way_across(district: Path) -> None:
+    filled_and_allocated(district)
+    code, output = run(
+        district,
+        [
+            "reservoir",
+            "carryover",
+            "--name",
+            "Ephraim Reservoir",
+            "--from",
+            "2025",
+            "--to",
+            "2026",
+            "--cap",
+            "100",
+        ],
+    )
+    assert code == 0
+    assert "over the cap and are gone" in output
+
+
+def test_carrying_backwards_is_refused(district: Path) -> None:
+    filled_and_allocated(district)
+    code, output = run(
+        district,
+        ["reservoir", "carryover", "--name", "Ephraim Reservoir", "--from", "2025", "--to", "2024"],
+    )
+    assert code != 0
+    assert "does not come after" in output
+
+
+def test_a_pool_with_nothing_allocated_still_carries(district: Path) -> None:
+    build(district)
+    run(
+        district,
+        [
+            "reservoir",
+            "fill",
+            "--name",
+            "Ephraim Reservoir",
+            "--on",
+            "2025-04-01",
+            "--inflow",
+            "800",
+        ],
+    )
+    code, output = run(
+        district,
+        ["reservoir", "carryover", "--name", "Ephraim Reservoir", "--from", "2025", "--to", "2026"],
+    )
+    assert code == 0
+    assert "nothing allocated behind it" in output
+
+
+def test_a_year_with_no_pool_cannot_be_carried(district: Path) -> None:
+    build(district)
+    code, output = run(
+        district,
+        ["reservoir", "carryover", "--name", "Ephraim Reservoir", "--from", "2025", "--to", "2026"],
+    )
+    assert code != 0
+    assert "no pool" in output
