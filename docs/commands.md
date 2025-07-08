@@ -461,6 +461,7 @@ One account's statement for a season.
 - `--year` (required) Water year.
 - `--as-of` The day to work the balance to.
 - `--due` The day the bill was due.
+- `--format` How to print it.
 
 ## headgate report board
 
@@ -535,6 +536,7 @@ What to set today, and to what gauge height.
 The season report, headgate to turnout.
 
 - `water_year` (argument)
+- `--format` How to print it.
 - `--loss` How the ditch loss is charged out.
 
 ## headgate report turnout

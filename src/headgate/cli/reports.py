@@ -17,7 +17,7 @@ from ..analysis.compare import SeasonTotals, compare
 from ..analysis.efficiency import review as duty_review
 from ..audit.journal import EntryKind
 from ..carriage.apportion import LossPolicy, apportion, measured_loss
-from ..cli.render import Align, Column, field_list, rate, render_table, volume
+from ..cli.render import Align, Column, as_json, field_list, rate, render_table, volume
 from ..errors import NotFoundError, PolicyError
 from ..ids import AccountNumber, DecreeNumber, TurnoutCode
 from ..model.device import Device
@@ -63,6 +63,14 @@ def report() -> None:
 @report.command("season")
 @click.argument("water_year", type=int)
 @click.option(
+    "--format",
+    "output",
+    type=click.Choice(["text", "json"]),
+    default="text",
+    show_default=True,
+    help="How to print it.",
+)
+@click.option(
     "--loss",
     "loss_policy",
     type=click.Choice(POLICY_NAMES),
@@ -71,7 +79,7 @@ def report() -> None:
     help="How the ditch loss is charged out.",
 )
 @click.pass_obj
-def season_report(context: Context, water_year: int, loss_policy: str) -> None:
+def season_report(context: Context, water_year: int, output: str, loss_policy: str) -> None:
     """The season report, headgate to turnout."""
 
     with context.open_current() as connection:
@@ -86,8 +94,6 @@ def season_report(context: Context, water_year: int, loss_policy: str) -> None:
         built = build(
             water_year, district, ledger, split, headgate.total_af, load_system(connection)
         )
-        click.echo(field_list(built.summary()))
-        click.echo()
         columns = [
             Column("turnout"),
             Column("delivered", Align.RIGHT),
@@ -97,6 +103,11 @@ def season_report(context: Context, water_year: int, loss_policy: str) -> None:
             Column("charged", Align.RIGHT),
             Column("gap hours", Align.RIGHT),
         ]
+        if output == "json":
+            click.echo(as_json(built.summary(), columns, built.rows()))
+            return
+        click.echo(field_list(built.summary()))
+        click.echo()
         click.echo(render_table(columns, built.rows()))
 
 
@@ -275,6 +286,14 @@ def day_report(context: Context, day: str, flow: str, taking: tuple[str, ...]) -
 @click.option("--year", "water_year", required=True, type=int, help="Water year.")
 @click.option("--as-of", default=None, help="The day to work the balance to.")
 @click.option("--due", default=None, help="The day the bill was due.")
+@click.option(
+    "--format",
+    "output",
+    type=click.Choice(["text", "json"]),
+    default="text",
+    show_default=True,
+    help="How to print it.",
+)
 @click.pass_obj
 def account_report(
     context: Context,
@@ -282,6 +301,7 @@ def account_report(
     water_year: int,
     as_of: str | None,
     due: str | None,
+    output: str,
 ) -> None:
     """One account's statement for a season."""
 
@@ -316,8 +336,6 @@ def account_report(
             due_on=parse_day(due) if due is not None else date(water_year, 12, 1),
             as_of=parse_day(as_of) if as_of is not None else date.today(),
         )
-    click.echo(field_list(statement.summary()))
-    click.echo()
     columns = [
         Column("turnout"),
         Column("delivered", Align.RIGHT),
@@ -326,6 +344,11 @@ def account_report(
         Column("loss", Align.RIGHT),
         Column("charged", Align.RIGHT),
     ]
+    if output == "json":
+        click.echo(as_json(statement.summary(), columns, statement.rows()))
+        return
+    click.echo(field_list(statement.summary()))
+    click.echo()
     click.echo(render_table(columns, statement.rows()))
 
 

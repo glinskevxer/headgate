@@ -8,6 +8,7 @@ to two, because that is what the delivery slips have always shown.
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from decimal import Decimal
 from enum import Enum
@@ -99,6 +100,29 @@ def plural(count: int, word: str, many: str | None = None) -> str:
 
 def yes_no(flag: bool) -> str:
     return "yes" if flag else "no"
+
+
+def as_json(summary: list[tuple[str, str]], columns: list[Column], rows: list[list[str]]) -> str:
+    """The same answer a table prints, in a shape a program can read.
+
+    Everything comes out as a string, deliberately. These reports are already
+    rounded to the places the record carries, and handing a downstream program
+    a float it can re-round is how two systems end up disagreeing about an acre
+    foot.
+    """
+
+    if any(len(row) != len(columns) for row in rows):
+        raise ValueError("a row does not fit the columns it is being written under")
+    names = [column.header for column in columns]
+    return json.dumps(
+        {
+            "summary": dict(summary),
+            "columns": names,
+            "rows": [dict(zip(names, row, strict=True)) for row in rows],
+        },
+        indent=2,
+        sort_keys=False,
+    )
 
 
 def truncate(text: str, width: int) -> str:

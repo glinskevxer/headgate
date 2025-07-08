@@ -580,3 +580,37 @@ def test_a_short_turnout_is_named_on_the_duty_report(district: Path) -> None:
     code, output = run(district, ["report", "duty", "--year", "2025"])
     assert code == 0
     assert "short" in output or "about right" in output or "over" in output
+
+
+def test_the_season_report_comes_out_as_json(district: Path) -> None:
+    import json
+
+    code, output = run(district, ["report", "season", "2025", "--format", "json"])
+    assert code == 0
+    found = json.loads(output)
+    assert found["summary"]["water year"] == "2025"
+    assert any(row["turnout"] == "MAIN-3" for row in found["rows"])
+
+
+def test_a_statement_comes_out_as_json(district: Path) -> None:
+    import json
+
+    code, output = run(
+        district,
+        [
+            "report",
+            "account",
+            "--account",
+            "118",
+            "--year",
+            "2025",
+            "--as-of",
+            "2025-12-15",
+            "--format",
+            "json",
+        ],
+    )
+    assert code == 0
+    found = json.loads(output)
+    assert "account" in found["summary"]
+    assert found["columns"][0] == "turnout"

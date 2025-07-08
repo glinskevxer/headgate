@@ -5,6 +5,7 @@ import pytest
 from headgate.cli.render import (
     Align,
     Column,
+    as_json,
     field_list,
     hours,
     plural,
@@ -86,3 +87,34 @@ def test_a_long_note_is_cut_with_an_ellipsis() -> None:
 def test_truncating_to_nothing_useful_is_refused() -> None:
     with pytest.raises(ValueError, match="fewer than four"):
         truncate("anything", 3)
+
+
+def test_a_report_comes_out_as_json() -> None:
+    import json
+
+    columns = [Column("turnout"), Column("rate", Align.RIGHT)]
+    text = as_json([("district", "Sanpete")], columns, [["L2-14", "1.500"]])
+    found = json.loads(text)
+    assert found["summary"]["district"] == "Sanpete"
+    assert found["columns"] == ["turnout", "rate"]
+    assert found["rows"][0]["rate"] == "1.500"
+
+
+def test_every_value_in_the_json_is_a_string() -> None:
+    import json
+
+    columns = [Column("acre feet", Align.RIGHT)]
+    found = json.loads(as_json([("total", "12.50")], columns, [["12.50"]]))
+    assert isinstance(found["rows"][0]["acre feet"], str)
+
+
+def test_a_row_that_does_not_fit_the_columns_is_refused() -> None:
+    with pytest.raises(ValueError, match="does not fit the columns"):
+        as_json([], [Column("a")], [["one", "two"]])
+
+
+def test_a_report_with_no_rows_still_comes_out() -> None:
+    import json
+
+    found = json.loads(as_json([("district", "Sanpete")], [Column("a")], []))
+    assert found["rows"] == []
