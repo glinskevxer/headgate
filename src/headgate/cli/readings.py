@@ -22,10 +22,10 @@ from ..measure.quality import rate_reading
 from ..measure.telemetry import Sample, SampleRun
 from ..model.reading import ReadingMethod, StaffReading
 from ..store.repo_devices import load_device
-from ..store.repo_readings import count_readings, load_series, save_reading
+from ..store.repo_readings import load_series, save_reading, save_readings
 from ..wateryear import parse_instant
 from .context import Context
-from .render import Align, Column, rate, render_table, truncate
+from .render import Align, Column, plural, rate, render_table, truncate
 
 REQUIRED_COLUMNS = ("device", "taken_at", "observer")
 
@@ -176,13 +176,11 @@ def import_readings(context: Context, path: Path, dry_run: bool) -> None:
     with context.open_current() as connection:
         for row in rows:
             load_device(connection, row.reading.device)
+        devices = {str(row.reading.device) for row in rows}
         if dry_run:
-            click.echo(f"{path} holds {len(rows)} readings and every one of them checks out")
+            click.echo(f"{path} holds {len(rows)} readings for {plural(len(devices), 'device')}")
             return
-        before = count_readings(connection)
-        for row in rows:
-            save_reading(connection, row.reading)
-        written = count_readings(connection) - before
+        written = save_readings(connection, [row.reading for row in rows])
         click.echo(f"{written} readings loaded from {path}")
 
 

@@ -19,6 +19,7 @@ from headgate.store.repo_readings import (
     load_series_within,
     readings_on,
     save_reading,
+    save_readings,
 )
 from headgate.wateryear import Span
 
@@ -172,3 +173,31 @@ def test_a_reading_written_against_the_wrong_device_can_be_struck(
 def test_striking_a_reading_that_is_not_there_says_so(book: sqlite3.Connection) -> None:
     stocked(book)
     assert not delete_reading(book, WEIR, datetime(2024, 6, 1, 7))
+
+
+def test_a_whole_file_is_written_in_one_go(book: sqlite3.Connection) -> None:
+    stocked(book)
+    written = save_readings(book, [reading(day) for day in (1, 4, 9)])
+    assert written == 3
+    assert count_readings(book, WEIR) == 3
+
+
+def test_one_bad_row_takes_the_whole_file_down(book: sqlite3.Connection) -> None:
+    stocked(book)
+    save_reading(book, reading(4))
+    with pytest.raises(ConflictError, match="none of them were written"):
+        save_readings(book, [reading(1), reading(4), reading(9)])
+    assert count_readings(book, WEIR) == 1
+
+
+def test_writing_nothing_writes_nothing(book: sqlite3.Connection) -> None:
+    stocked(book)
+    assert save_readings(book, []) == 0
+    assert count_readings(book) == 0
+
+
+def test_a_bulk_write_against_a_device_that_is_not_there_is_refused(
+    book: sqlite3.Connection,
+) -> None:
+    with pytest.raises(sqlite3.IntegrityError):
+        save_readings(book, [reading(1)])

@@ -159,7 +159,7 @@ def test_a_dry_run_writes_nothing(book: Path, tmp_path: Path) -> None:
     path = csv_file(tmp_path, "WEIR-L2-14,2025-06-01T06:00,D. Yardley,0.62,\n")
     code, output = run(book, ["reading", "import", str(path), "--dry-run"])
     assert code == 0
-    assert "checks out" in output
+    assert "1 readings for 1 device" in output
     code, output = run(book, ["reading", "list", "WEIR-L2-14"])
     assert "nobody has read" in output
 

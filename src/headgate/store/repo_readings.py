@@ -10,6 +10,7 @@ caller.
 from __future__ import annotations
 
 import sqlite3
+from collections.abc import Sequence
 from datetime import date, datetime
 
 from ..errors import ConflictError
@@ -68,6 +69,46 @@ def save_reading(connection: sqlite3.Connection, reading: StaffReading) -> None:
                 f"device {reading.device} was already read at {reading.taken_at}"
             ) from exc
         raise
+
+
+def save_readings(connection: sqlite3.Connection, readings: Sequence[StaffReading]) -> int:
+    """Write a whole file of readings as one transaction.
+
+    A rider's tablet brings back five thousand rows and writing them one at a
+    time is five thousand transactions, each with its own fsync, which takes
+    minutes on the office machine. This writes them in one, and one bad row
+    takes the whole file down rather than leaving half of it in, which is what
+    the import command promises.
+    """
+
+    if not readings:
+        return 0
+    rows = [
+        (
+            str(reading.device),
+            instant_text(reading.taken_at),
+            reading.observer,
+            enum_text(reading.method),
+            optional_decimal_text(reading.head_feet),
+            optional_decimal_text(reading.tail_feet),
+            optional_decimal_text(reading.meter_total_af),
+            reading.note,
+        )
+        for reading in readings
+    ]
+    try:
+        with transaction(connection):
+            connection.executemany(
+                f"INSERT INTO reading ({READING_COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                rows,
+            )
+    except sqlite3.IntegrityError as exc:
+        if "UNIQUE" in str(exc).upper():
+            raise ConflictError(
+                "one of these readings is already in the book, so none of them were written"
+            ) from exc
+        raise
+    return len(rows)
 
 
 def load_series(connection: sqlite3.Connection, device: DeviceTag) -> ReadingSeries:
