@@ -14,10 +14,13 @@ from decimal import Decimal
 
 import click
 
-from ..errors import HeadgateError
+from ..errors import HeadgateError, PolicyError
 from ..ids import AccountNumber, TurnoutCode
 from ..model.order import WaterOrder
+from ..orders.allocation import ShortagePolicy
+from ..orders.allocation import allocate as allocate_day
 from ..orders.intake import IntakeRules, answer_order
+from ..store.assemble import shares_by_turnout
 from ..store.repo_accounts import load_register
 from ..store.repo_allotment import load_ledger as load_allotment
 from ..store.repo_ditch import load_system
@@ -25,6 +28,7 @@ from ..store.repo_orders import (
     load_book,
     load_order,
     next_order_number,
+    orders_running_at,
     save_order,
     waiting_orders,
 )
@@ -128,6 +132,65 @@ def cancel(context: Context, order_id: int, note: str) -> None:
         cancelled = load_order(connection, order_id).cancel(note)
         save_order(connection, cancelled)
         click.echo(f"order {order_id} cancelled")
+
+
+@order.command("allocate")
+@click.option("--at", "moment", required=True, help="The moment the ditch is being set.")
+@click.option("--supply", required=True, help="What the ditch has to hand out, in cfs.")
+@click.option(
+    "--policy",
+    type=click.Choice([item.value.replace("_", "-") for item in ShortagePolicy]),
+    default="pro-rata",
+    show_default=True,
+    help="How a short day is cut.",
+)
+@click.option(
+    "--minimum-head",
+    default="0.5",
+    show_default=True,
+    help="Below this a set is dropped rather than cut.",
+)
+@click.pass_obj
+def allocate(context: Context, moment: str, supply: str, policy: str, minimum_head: str) -> None:
+    """Cut the answered orders down to the water that showed up."""
+
+    at = parse_instant(moment)
+    with context.open_current() as connection:
+        running = list(orders_running_at(connection, at))
+        if not running:
+            raise PolicyError(f"no order was due to run at {at:%Y-%m-%d %H:%M}")
+        season = season_for(connection, at.date())
+        shares = shares_by_turnout(connection, season.opened)
+        result = allocate_day(
+            running,
+            Decimal(supply),
+            ShortagePolicy(policy.replace("-", "_")),
+            shares,
+            Decimal(minimum_head),
+        )
+    columns = [
+        Column("order", Align.RIGHT),
+        Column("turnout"),
+        Column("answered", Align.RIGHT),
+        Column("running", Align.RIGHT),
+        Column("why"),
+    ]
+    rows = [
+        [
+            str(item.order_id),
+            str(item.turnout),
+            rate(item.answered_cfs),
+            rate(item.running_cfs),
+            item.reason,
+        ]
+        for item in result.cuts
+    ]
+    click.echo(render_table(columns, rows))
+    click.echo()
+    click.echo(
+        f"{rate(result.running_cfs)} of {rate(result.answered_cfs)} cfs running, "
+        f"{len(result.dropped)} sets dropped"
+    )
 
 
 @order.command("list")

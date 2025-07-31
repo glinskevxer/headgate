@@ -196,3 +196,71 @@ def test_a_book_that_was_never_set_up_refuses_orders(tmp_path: Path) -> None:
     code, output = run(tmp_path / "nothing.sqlite3", ["order", "list"])
     assert code != 0
     assert "never been set up" in output
+
+
+def place_and_answer(district: Path, account: str, rate: str, order_id: int) -> None:
+    run(
+        district,
+        [
+            "order",
+            "place",
+            "--account",
+            account,
+            "--turnout",
+            "L2-14",
+            "--rate",
+            rate,
+            "--from",
+            "2025-07-01T06:00",
+            "--to",
+            "2025-07-08T06:00",
+            "--placed",
+            "2025-06-28T08:00",
+        ],
+    )
+    run(district, ["order", "answer", str(order_id)])
+
+
+def test_a_day_with_plenty_of_water_leaves_the_orders_alone(district: Path) -> None:
+    place_and_answer(district, "118", "3", 1)
+    code, output = run(
+        district, ["order", "allocate", "--at", "2025-07-04T12:00", "--supply", "10"]
+    )
+    assert code == 0
+    assert "as answered" in output
+    assert "3.000 of 3.000 cfs running" in output
+
+
+def test_a_short_day_cuts_the_orders(district: Path) -> None:
+    place_and_answer(district, "118", "3", 1)
+    code, output = run(district, ["order", "allocate", "--at", "2025-07-04T12:00", "--supply", "2"])
+    assert code == 0
+    assert "cut under pro_rata" in output
+
+
+def test_a_set_under_the_minimum_head_is_dropped(district: Path) -> None:
+    place_and_answer(district, "118", "3", 1)
+    code, output = run(
+        district, ["order", "allocate", "--at", "2025-07-04T12:00", "--supply", "0.2"]
+    )
+    assert code == 0
+    assert "sets dropped" in output
+    assert "minimum head" in output
+
+
+def test_a_day_with_nothing_running_is_refused(district: Path) -> None:
+    code, output = run(
+        district, ["order", "allocate", "--at", "2025-07-04T12:00", "--supply", "10"]
+    )
+    assert code != 0
+    assert "no order was due to run" in output
+
+
+def test_cutting_by_share_uses_the_stock_book(district: Path) -> None:
+    place_and_answer(district, "118", "3", 1)
+    code, output = run(
+        district,
+        ["order", "allocate", "--at", "2025-07-04T12:00", "--supply", "2", "--policy", "by-share"],
+    )
+    assert code == 0
+    assert "cut under by_share" in output

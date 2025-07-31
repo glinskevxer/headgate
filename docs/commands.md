@@ -378,6 +378,15 @@ Bring an existing book up to this version.
 
 Take and answer orders for water.
 
+## headgate order allocate
+
+Cut the answered orders down to the water that showed up.
+
+- `--at` (required) The moment the ditch is being set.
+- `--supply` (required) What the ditch has to hand out, in cfs.
+- `--policy` How a short day is cut.
+- `--minimum-head` Below this a set is dropped rather than cut.
+
 ## headgate order answer
 
 Answer a waiting order against the book as it stands.
