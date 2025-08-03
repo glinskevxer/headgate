@@ -116,6 +116,12 @@ def test_a_lapsed_calibration_in_one_july_lowers_the_average() -> None:
     assert clean <= generous
 
 
+def test_a_study_with_no_usable_year_at_all_stops() -> None:
+    records = [record(year, provenance=Provenance.ESTIMATED) for year in range(2015, 2025)]
+    with pytest.raises(PolicyError, match="no year of the study is usable"):
+        analyse(records, minimum_years=0)
+
+
 def test_too_few_usable_years_stops_the_study() -> None:
     records = [record(year, provenance=Provenance.ESTIMATED) for year in range(2015, 2025)]
     records[0] = record(2015)

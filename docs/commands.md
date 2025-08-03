@@ -517,6 +517,15 @@ Turnouts nothing is measuring, and turnouts with holes in the record.
 
 - `water_year` (argument)
 
+## headgate report hcu
+
+What the ground behind a turnout has actually consumed.
+
+- `--turnout` (required) The ground being studied.
+- `--years` (required) Water years, as first-last.
+- `--minimum` How many usable years the rule asks for.
+- `--count-curtailed` Count the years spent curtailed.
+
 ## headgate report journal
 
 Print the journal, or the part of it somebody asked about.

@@ -150,6 +150,10 @@ def analyse(
         for record in sorted(records, key=lambda item: item.water_year)
     )
     counted = [item for item in findings if item.counted]
+    if not counted:
+        raise PolicyError(
+            "no year of the study is usable, so there is no consumptive use to average"
+        )
     if len(counted) < minimum_years:
         raise PolicyError(
             f"{len(counted)} years of the study are usable and the rule asks for {minimum_years}"

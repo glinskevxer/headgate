@@ -18,6 +18,7 @@ from ..analysis.efficiency import review as duty_review
 from ..audit.journal import EntryKind
 from ..carriage.apportion import LossPolicy, apportion, measured_loss
 from ..cli.render import Align, Column, as_json, field_list, rate, render_table, volume
+from ..duty.hcu import analyse
 from ..errors import NotFoundError, PolicyError
 from ..ids import AccountNumber, DecreeNumber, TurnoutCode
 from ..model.device import Device
@@ -30,6 +31,7 @@ from ..report.season import build
 from ..report.statement import build as build_statement
 from ..store.assemble import (
     build_ledger,
+    consumptive_use_records,
     headgate_volume,
     turnout_owners,
     turnouts_without_a_device,
@@ -396,6 +398,62 @@ def journal(
         Column("note"),
     ]
     click.echo(render_table(columns, built.rows()))
+
+
+@report.command("hcu")
+@click.option("--turnout", "turnout_code", required=True, help="The ground being studied.")
+@click.option("--years", required=True, help="Water years, as first-last.")
+@click.option(
+    "--minimum", default=5, show_default=True, help="How many usable years the rule asks for."
+)
+@click.option("--count-curtailed", is_flag=True, help="Count the years spent curtailed.")
+@click.pass_obj
+def hcu(
+    context: Context,
+    turnout_code: str,
+    years: str,
+    minimum: int,
+    count_curtailed: bool,
+) -> None:
+    """What the ground behind a turnout has actually consumed."""
+
+    first, _, last = years.partition("-")
+    if not last:
+        raise PolicyError(f"{years!r} is not a study period, write it as first-last")
+    turnout = TurnoutCode.parse(turnout_code)
+    with context.open_current() as connection:
+        records = consumptive_use_records(connection, turnout, range(int(first), int(last) + 1))
+    if not records:
+        raise PolicyError(f"there is no delivery record for {turnout} in those years")
+    study = analyse(records, minimum_years=minimum, count_curtailed=count_curtailed)
+    click.echo(
+        field_list(
+            [
+                ("turnout", str(turnout)),
+                ("study period", f"{first} to {last}"),
+                ("years read", str(study.study_years)),
+                ("years counted", str(study.counted_years)),
+                ("consumptive use", f"{volume(study.average_af)} acre feet a year"),
+            ]
+        )
+    )
+    click.echo()
+    columns = [
+        Column("year", Align.RIGHT),
+        Column("consumed", Align.RIGHT),
+        Column("counted"),
+        Column("why"),
+    ]
+    rows = [
+        [
+            str(item.water_year),
+            volume(item.consumed_af),
+            "yes" if item.counted else "no",
+            item.reason,
+        ]
+        for item in study.findings
+    ]
+    click.echo(render_table(columns, rows))
 
 
 @report.command("board")

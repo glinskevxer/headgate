@@ -183,3 +183,56 @@ def test_pulling_readings_for_a_turnout_with_no_device_is_refused(
     stocked(book, with_far=False)
     with pytest.raises(NotFoundError):
         series_for_turnout(book, FAR, span())
+
+
+def test_a_season_read_all_through_counts_toward_consumptive_use(
+    book: sqlite3.Connection,
+) -> None:
+    from datetime import timedelta
+
+    from headgate.duty.hcu import analyse
+    from headgate.ids import AccountNumber
+    from headgate.model.account import Account, AccountStatus, ShareRegister
+    from headgate.model.parcel import CropCode, Parcel, PlaceOfUse
+    from headgate.store.assemble import consumptive_use_records
+    from headgate.store.repo_accounts import save_place_of_use, save_register
+    from headgate.store.repo_season import declare_season
+    from headgate.wateryear import IrrigationSeason
+
+    stocked(book)
+    save_register(
+        book,
+        ShareRegister(
+            accounts=(
+                Account(
+                    AccountNumber(118), "Alma Peterson", date(1994, 3, 1), AccountStatus.ACTIVE
+                ),
+            )
+        ),
+    )
+    save_place_of_use(
+        book,
+        PlaceOfUse(
+            parcels=(
+                Parcel("11-042-001", AccountNumber(118), FAR, Decimal("40"), CropCode.ALFALFA),
+            )
+        ),
+    )
+    for year in (2024, 2025):
+        declare_season(book, IrrigationSeason.default_for(year), date(year, 3, 20))
+        opened = datetime(year, 4, 15)
+        for index in range(20):
+            save_reading(
+                book,
+                StaffReading(
+                    device=DeviceTag(f"WEIR-{FAR}"),
+                    taken_at=opened + timedelta(days=index * 9),
+                    observer="D. Yardley",
+                    head_feet=Decimal("0.55"),
+                ),
+            )
+    records = consumptive_use_records(book, FAR, [2024, 2025])
+    assert [item.water_year for item in records] == [2024, 2025]
+    study = analyse(records, minimum_years=1)
+    assert study.counted_years >= 1
+    assert study.average_af > Decimal("0")

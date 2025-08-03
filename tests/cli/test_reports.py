@@ -614,3 +614,39 @@ def test_a_statement_comes_out_as_json(district: Path) -> None:
     found = json.loads(output)
     assert "account" in found["summary"]
     assert found["columns"][0] == "turnout"
+
+
+def test_a_season_read_once_proves_nothing_for_a_consumptive_use_study(
+    district: Path,
+) -> None:
+    add_parcels(district)
+    second_season(district)
+    code, output = run(
+        district,
+        ["report", "hcu", "--turnout", "L2-14", "--years", "2025-2026", "--minimum", "1"],
+    )
+    assert code != 0
+    assert "usable" in output
+
+
+def test_a_study_period_written_wrong_is_refused(district: Path) -> None:
+    add_parcels(district)
+    code, output = run(district, ["report", "hcu", "--turnout", "L2-14", "--years", "2025"])
+    assert code != 0
+    assert "not a study period" in output
+
+
+def test_a_turnout_with_no_record_has_no_study(district: Path) -> None:
+    code, output = run(
+        district,
+        ["report", "hcu", "--turnout", "L2-14", "--years", "2025-2026", "--minimum", "1"],
+    )
+    assert code != 0
+    assert "no delivery record" in output
+
+
+def test_too_few_usable_years_stops_the_study(district: Path) -> None:
+    add_parcels(district)
+    code, output = run(district, ["report", "hcu", "--turnout", "L2-14", "--years", "2025-2025"])
+    assert code != 0
+    assert "usable" in output

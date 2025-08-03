@@ -12,9 +12,11 @@ report shows the gap instead of quietly leaving the turnout off.
 from __future__ import annotations
 
 import sqlite3
+from collections.abc import Sequence
 from datetime import date
 from decimal import Decimal
 
+from ..duty.hcu import SeasonRecord
 from ..errors import NotFoundError, PolicyError
 from ..ids import AccountNumber, DeviceTag, DitchCode, TurnoutCode
 from ..measure.delivery import DeliveryLedger, DeliveryRecord, record_for
@@ -28,10 +30,11 @@ from ..measure.integrate import (
 from ..measure.quality import Provenance
 from ..model.reading import ReadingSeries
 from ..wateryear import Span
-from .repo_accounts import load_register
+from .repo_accounts import load_place_of_use, load_register
 from .repo_devices import device_at_turnout, load_devices
 from .repo_ditch import load_system
 from .repo_readings import load_series_within
+from .repo_season import load_season
 
 
 def _nothing_measured(turnout: TurnoutCode, span: Span, why: str) -> DeliveryRecord:
@@ -147,5 +150,51 @@ def shares_by_turnout(connection: sqlite3.Connection, on: date) -> dict[TurnoutC
     for certificate in register.held_on(on):
         found[certificate.turnout] = (
             found.get(certificate.turnout, Decimal("0")) + certificate.shares
+        )
+    return found
+
+
+def consumptive_use_records(
+    connection: sqlite3.Connection, turnout: TurnoutCode, water_years: Sequence[int]
+) -> list[SeasonRecord]:
+    """Build a consumptive use study period out of the delivery record.
+
+    One record a year, carrying what the turnout was delivered, how well that
+    is known, and the ground and crop behind it. The provenance is the part
+    that decides the answer: a year the record is only estimated is a year the
+    study cannot count, and that comes straight off the ledger rather than out
+    of anybody's judgement.
+    """
+
+    found: list[SeasonRecord] = []
+    for water_year in sorted(set(water_years)):
+        try:
+            season = load_season(connection, water_year)
+        except NotFoundError:
+            continue
+        ledger = build_ledger(connection, season.as_span())
+        try:
+            record = ledger.for_turnout(turnout)
+        except PolicyError:
+            continue
+        place = load_place_of_use(connection)
+        parcels = [
+            parcel
+            for parcel in place.parcels
+            if parcel.turnout == turnout and parcel.in_production_on(season.opened)
+        ]
+        if not parcels:
+            continue
+        acres = sum((parcel.irrigated_acres for parcel in parcels), Decimal("0"))
+        biggest = max(parcels, key=lambda item: item.irrigated_acres)
+        found.append(
+            SeasonRecord(
+                water_year=water_year,
+                delivered_af=record.total_af,
+                provenance=record.provenance,
+                irrigated_acres=acres,
+                crop=biggest.crop,
+                application=biggest.application,
+            )
         )
     return found
