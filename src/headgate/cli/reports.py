@@ -33,6 +33,7 @@ from ..store.assemble import (
     build_ledger,
     consumptive_use_records,
     headgate_volume,
+    season_picture,
     turnout_owners,
     turnouts_without_a_device,
 )
@@ -85,16 +86,15 @@ def season_report(context: Context, water_year: int, output: str, loss_policy: s
     """The season report, headgate to turnout."""
 
     with context.open_current() as connection:
-        season = load_season(connection, water_year)
-        span = season.as_span()
-        ledger = build_ledger(connection, span)
-        volumes = ledger.volumes()
-        headgate = headgate_volume(connection, span)
-        loss = measured_loss(headgate.total_af, volumes)
-        split = apportion(volumes, loss, _policy(loss_policy), system=load_system(connection))
+        picture = season_picture(connection, water_year, _policy(loss_policy))
         district = district_name(connection) or "this district"
         built = build(
-            water_year, district, ledger, split, headgate.total_af, load_system(connection)
+            water_year,
+            district,
+            picture.ledger,
+            picture.apportionment,
+            picture.headgate.total_af,
+            picture.system,
         )
         columns = [
             Column("turnout"),
@@ -211,14 +211,12 @@ def compare_seasons(context: Context, before_year: int, after_year: int, toleran
 def _season_totals(connection: sqlite3.Connection, water_year: int) -> SeasonTotals:
     """Total a season out of the book, for a comparison to line up."""
 
-    span = load_season(connection, water_year).as_span()
-    ledger = build_ledger(connection, span)
-    headgate = headgate_volume(connection, span)
+    picture = season_picture(connection, water_year)
     return SeasonTotals(
         water_year=water_year,
-        headgate_af=headgate.total_af,
-        delivered_af=ledger.total_af,
-        by_turnout=ledger.volumes(),
+        headgate_af=picture.headgate.total_af,
+        delivered_af=picture.ledger.total_af,
+        by_turnout=picture.volumes,
     )
 
 
@@ -309,17 +307,10 @@ def account_report(
 
     account = AccountNumber.parse(account_number)
     with context.open_current() as connection:
-        season = load_season(connection, water_year)
-        span = season.as_span()
-        ledger = build_ledger(connection, span)
-        volumes = ledger.volumes()
-        headgate = headgate_volume(connection, span)
-        split = apportion(
-            volumes,
-            measured_loss(headgate.total_af, volumes),
-            LossPolicy.BY_LEG,
-            system=load_system(connection),
-        )
+        picture = season_picture(connection, water_year)
+        season = picture.season
+        ledger = picture.ledger
+        split = picture.apportionment
         owners = turnout_owners(connection, season.opened)
         mine = tuple(turnout for turnout, holders in owners.items() if account in holders)
         if not mine:

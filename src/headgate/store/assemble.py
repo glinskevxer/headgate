@@ -13,9 +13,11 @@ from __future__ import annotations
 
 import sqlite3
 from collections.abc import Sequence
+from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 
+from ..carriage.apportion import Apportionment, LossPolicy, apportion, measured_loss
 from ..duty.hcu import SeasonRecord
 from ..errors import NotFoundError, PolicyError
 from ..ids import AccountNumber, DeviceTag, DitchCode, TurnoutCode
@@ -28,8 +30,9 @@ from ..measure.integrate import (
     integrate,
 )
 from ..measure.quality import Provenance
+from ..model.ditch import DitchSystem
 from ..model.reading import ReadingSeries
-from ..wateryear import Span
+from ..wateryear import IrrigationSeason, Span
 from .repo_accounts import load_place_of_use, load_register
 from .repo_devices import device_at_turnout, load_devices
 from .repo_ditch import load_system
@@ -198,3 +201,62 @@ def consumptive_use_records(
             )
         )
     return found
+
+
+@dataclass(frozen=True, slots=True)
+class SeasonPicture:
+    """A season as every report needs it, assembled once.
+
+    Four of the reports opened the season, built the ledger, read the headgate
+    and charged the loss out in the same four lines, which is four places for
+    the loss rule to drift apart. It is assembled here instead.
+    """
+
+    season: IrrigationSeason
+    ledger: DeliveryLedger
+    headgate: IntegratedVolume
+    apportionment: Apportionment
+    system: DitchSystem
+
+    @property
+    def span(self) -> Span:
+        return self.season.as_span()
+
+    @property
+    def volumes(self) -> dict[TurnoutCode, Decimal]:
+        return self.ledger.volumes()
+
+    @property
+    def loss_af(self) -> Decimal:
+        return measured_loss(self.headgate.total_af, self.volumes)
+
+
+def season_picture(
+    connection: sqlite3.Connection,
+    water_year: int,
+    policy: LossPolicy = LossPolicy.BY_LEG,
+    method: Integration = Integration.STEP,
+) -> SeasonPicture:
+    """Open a season and work everything the reports read off it."""
+
+    season = load_season(connection, water_year)
+    span = season.as_span()
+    ledger = build_ledger(connection, span, method)
+    headgate = headgate_volume(connection, span, method=method)
+    system = load_system(connection)
+    volumes = ledger.volumes()
+    shares = shares_by_turnout(connection, season.opened) if policy.needs_shares else None
+    split = apportion(
+        volumes,
+        measured_loss(headgate.total_af, volumes),
+        policy,
+        system=system,
+        shares=shares,
+    )
+    return SeasonPicture(
+        season=season,
+        ledger=ledger,
+        headgate=headgate,
+        apportionment=split,
+        system=system,
+    )
