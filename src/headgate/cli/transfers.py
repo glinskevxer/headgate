@@ -9,12 +9,15 @@ years later by somebody else.
 
 from __future__ import annotations
 
+import sqlite3
 from decimal import Decimal
 
 import click
 
-from ..duty.hcu import HistoricalUse, YearFinding
+from ..duty.hcu import HistoricalUse, YearFinding, analyse
+from ..errors import PolicyError
 from ..ids import DecreeNumber, TurnoutCode
+from ..store.assemble import consumptive_use_records
 from ..store.repo_transfers import (
     applications_on,
     approved_volume_on,
@@ -55,7 +58,9 @@ def transfer() -> None:
 @click.option("--kind", required=True, type=click.Choice(KIND_NAMES), help="What changes.")
 @click.option("--filed", required=True, help="The day it was filed.")
 @click.option("--requested", required=True, help="Acre feet asked to be moved.")
-@click.option("--proved", required=True, help="Acre feet the study proves.")
+@click.option("--proved", default=None, help="Acre feet the study proves, if it is known.")
+@click.option("--study-turnout", default=None, help="Work the study off this turnout's record.")
+@click.option("--study-years", default=None, help="Water years for the study, as first-last.")
 @click.option("--from-turnout", default=None, help="Where the water comes off.")
 @click.option("--to-turnout", default=None, help="Where it is going.")
 @click.option("--dry-up", multiple=True, help="A parcel offered for dry up.")
@@ -67,30 +72,62 @@ def file_transfer(
     kind: str,
     filed: str,
     requested: str,
-    proved: str,
+    proved: str | None,
+    study_turnout: str | None,
+    study_years: str | None,
     from_turnout: str | None,
     to_turnout: str | None,
     dry_up: tuple[str, ...],
 ) -> None:
     """File an application against a right."""
 
-    application = TransferApplication(
-        number=number,
-        decree=DecreeNumber.parse(decree),
-        kind=_kind(kind),
-        filed_on=parse_day(filed),
-        requested_af=Decimal(requested),
-        study=_study(proved),
-        from_turnout=TurnoutCode.parse(from_turnout) if from_turnout is not None else None,
-        to_turnout=TurnoutCode.parse(to_turnout) if to_turnout is not None else None,
-        dry_up_parcels=tuple(dry_up),
-    )
     with context.open_current() as connection:
+        if proved is not None:
+            study = _study(proved)
+        else:
+            study = _study_from_record(connection, study_turnout, study_years)
+        application = TransferApplication(
+            number=number,
+            decree=DecreeNumber.parse(decree),
+            kind=_kind(kind),
+            filed_on=parse_day(filed),
+            requested_af=Decimal(requested),
+            study=study,
+            from_turnout=TurnoutCode.parse(from_turnout) if from_turnout is not None else None,
+            to_turnout=TurnoutCode.parse(to_turnout) if to_turnout is not None else None,
+            dry_up_parcels=tuple(dry_up),
+        )
         file_application(connection, application)
         click.echo(
             f"application {application.number} filed to move "
-            f"{volume(application.requested_af)} acre feet off {application.decree}"
+            f"{volume(application.requested_af)} acre feet off {application.decree}, "
+            f"against {volume(study.average_af)} proved"
         )
+
+
+def _study_from_record(
+    connection: sqlite3.Connection, turnout: str | None, years: str | None
+) -> HistoricalUse:
+    """Work the study off the delivery record rather than off a typed number.
+
+    This is the whole point of keeping provenance on every reading. A year the
+    turnout was measured all through counts; a year it was estimated does not,
+    and the applicant does not get to choose which.
+    """
+
+    if turnout is None or years is None:
+        raise PolicyError(
+            "either say what the study proves or give a turnout and years to work it from"
+        )
+    first, _, last = years.partition("-")
+    if not last:
+        raise PolicyError(f"{years!r} is not a study period, write it as first-last")
+    records = consumptive_use_records(
+        connection, TurnoutCode.parse(turnout), range(int(first), int(last) + 1)
+    )
+    if not records:
+        raise PolicyError(f"there is no delivery record for {turnout} in those years")
+    return analyse(records, minimum_years=1)
 
 
 @transfer.command("publish")

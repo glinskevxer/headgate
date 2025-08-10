@@ -798,7 +798,9 @@ File an application against a right.
 - `--kind` (required) What changes.
 - `--filed` (required) The day it was filed.
 - `--requested` (required) Acre feet asked to be moved.
-- `--proved` (required) Acre feet the study proves.
+- `--proved` Acre feet the study proves, if it is known.
+- `--study-turnout` Work the study off this turnout's record.
+- `--study-years` Water years for the study, as first-last.
 - `--from-turnout` Where the water comes off.
 - `--to-turnout` Where it is going.
 - `--dry-up` A parcel offered for dry up.

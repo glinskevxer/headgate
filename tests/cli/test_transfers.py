@@ -193,3 +193,170 @@ def test_an_empty_book_lists_no_applications(district: Path) -> None:
     code, output = run(district, ["transfer", "list"])
     assert code == 0
     assert "no applications" in output
+
+
+def test_a_study_can_be_worked_off_the_delivery_record(district: Path, tmp_path: Path) -> None:
+    from datetime import datetime, timedelta
+
+    from headgate.ids import AccountNumber, DeviceTag, TurnoutCode
+    from headgate.model.account import Account, AccountStatus, ShareRegister
+    from headgate.model.device import Calibration, Device, DeviceKind
+    from headgate.model.parcel import CropCode, Parcel, PlaceOfUse
+    from headgate.model.reading import StaffReading
+    from headgate.store.repo_accounts import save_place_of_use, save_register
+    from headgate.store.repo_devices import save_device
+    from headgate.store.repo_readings import save_reading
+    from headgate.store.repo_season import declare_season
+    from headgate.wateryear import IrrigationSeason
+
+    turnout = TurnoutCode("L2-14")
+    with Database(district).open() as connection:
+        save_register(
+            connection,
+            ShareRegister(
+                accounts=(
+                    Account(
+                        AccountNumber(118), "Alma Peterson", date(1994, 3, 1), AccountStatus.ACTIVE
+                    ),
+                )
+            ),
+        )
+        save_place_of_use(
+            connection,
+            PlaceOfUse(
+                parcels=(
+                    Parcel(
+                        "11-042-001", AccountNumber(118), turnout, Decimal("40"), CropCode.ALFALFA
+                    ),
+                )
+            ),
+        )
+        save_device(
+            connection,
+            Device(
+                tag=DeviceTag("WEIR-L2-14"),
+                kind=DeviceKind.CIPOLLETTI_WEIR,
+                installed=date(2016, 3, 1),
+                crest_width_feet=Decimal("3"),
+                turnout=turnout,
+                calibrations=(Calibration(date(2024, 4, 1), "R. Aldrich", date(2025, 4, 1)),),
+            ),
+        )
+        declare_season(connection, IrrigationSeason.default_for(2024), date(2024, 3, 20))
+        opened = datetime(2024, 4, 15)
+        for index in range(20):
+            save_reading(
+                connection,
+                StaffReading(
+                    device=DeviceTag("WEIR-L2-14"),
+                    taken_at=opened + timedelta(days=index * 9),
+                    observer="D. Yardley",
+                    head_feet=Decimal("0.55"),
+                ),
+            )
+    code, output = run(
+        district,
+        [
+            "transfer",
+            "file",
+            "--number",
+            "T-2025-11",
+            "--decree",
+            "CDA-1920-4",
+            "--kind",
+            "place-of-use",
+            "--filed",
+            "2025-02-10",
+            "--requested",
+            "20",
+            "--study-turnout",
+            "L2-14",
+            "--study-years",
+            "2024-2024",
+            "--dry-up",
+            "11-042-001",
+        ],
+    )
+    assert code == 0
+    assert "against" in output
+    assert "proved" in output
+
+
+def test_filing_without_a_study_or_a_record_is_refused(district: Path) -> None:
+    code, output = run(
+        district,
+        [
+            "transfer",
+            "file",
+            "--number",
+            "T-2025-12",
+            "--decree",
+            "CDA-1920-4",
+            "--kind",
+            "place-of-use",
+            "--filed",
+            "2025-02-10",
+            "--requested",
+            "20",
+            "--dry-up",
+            "11-042-001",
+        ],
+    )
+    assert code != 0
+    assert "either say what the study proves" in output
+
+
+def test_a_study_period_written_wrong_is_refused_when_filing(district: Path) -> None:
+    code, output = run(
+        district,
+        [
+            "transfer",
+            "file",
+            "--number",
+            "T-2025-13",
+            "--decree",
+            "CDA-1920-4",
+            "--kind",
+            "place-of-use",
+            "--filed",
+            "2025-02-10",
+            "--requested",
+            "20",
+            "--study-turnout",
+            "L2-14",
+            "--study-years",
+            "2024",
+            "--dry-up",
+            "11-042-001",
+        ],
+    )
+    assert code != 0
+    assert "not a study period" in output
+
+
+def test_a_turnout_with_no_record_cannot_prove_a_study(district: Path) -> None:
+    code, output = run(
+        district,
+        [
+            "transfer",
+            "file",
+            "--number",
+            "T-2025-14",
+            "--decree",
+            "CDA-1920-4",
+            "--kind",
+            "place-of-use",
+            "--filed",
+            "2025-02-10",
+            "--requested",
+            "20",
+            "--study-turnout",
+            "L2-14",
+            "--study-years",
+            "2024-2024",
+            "--dry-up",
+            "11-042-001",
+        ],
+    )
+    assert code != 0
+    assert "no delivery record" in output
