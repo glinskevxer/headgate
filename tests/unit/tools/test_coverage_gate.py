@@ -81,3 +81,43 @@ def test_a_missing_report_fails_the_gate(
 ) -> None:
     assert main([str(tmp_path / "nothing.json")]) == 1
     assert "is not there" in capsys.readouterr().out
+
+
+def test_the_floor_comes_off_the_command_line() -> None:
+    from decimal import Decimal as _Decimal
+
+    from headgate.tools.coverage_gate import read_floor
+
+    assert read_floor([]) == _Decimal("90")
+    assert read_floor(["--floor", "80"]) == _Decimal("80")
+
+
+def test_a_floor_with_no_number_after_it_is_refused() -> None:
+    from headgate.tools.coverage_gate import read_floor
+
+    with pytest.raises(ValueError, match="wants a number"):
+        read_floor(["--floor"])
+
+
+def test_a_lower_floor_lets_a_thin_report_through(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    path = report(tmp_path, 82.0, {"a.py": (82, 100)})
+    assert main(["--floor", "80", str(path)]) == 0
+    assert "82.0 percent" in capsys.readouterr().out
+
+
+def test_the_default_floor_still_fails_that_report(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    path = report(tmp_path, 82.0, {"a.py": (82, 100)})
+    assert main([str(path)]) == 1
+    assert "under the" in capsys.readouterr().out
+
+
+def test_a_module_floor_of_its_own_is_still_enforced(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    path = report(tmp_path, 95.0, {"a.py": (99, 100), "b.py": (6, 10)})
+    assert main(["--floor", "80", str(path)]) == 1
+    assert "b.py is at 60.0 percent" in capsys.readouterr().out

@@ -62,9 +62,24 @@ def under_floor(
     return tuple(item for item in modules if item.is_under(floor))
 
 
+def read_floor(arguments: list[str], default: Decimal = PACKAGE_FLOOR) -> Decimal:
+    """The floor the build is holding the package to, off the command line."""
+
+    if "--floor" not in arguments:
+        return default
+    index = arguments.index("--floor")
+    if index + 1 >= len(arguments):
+        raise ValueError("--floor wants a number after it")
+    return Decimal(arguments[index + 1])
+
+
 def main(argv: list[str] | None = None) -> int:
     arguments = sys.argv[1:] if argv is None else argv
-    path = Path(arguments[0]) if arguments else REPORT
+    floor = read_floor(arguments)
+    positional = [item for item in arguments if not item.startswith("-")]
+    if "--floor" in arguments:
+        positional = positional[1:]
+    path = Path(positional[0]) if positional else REPORT
     try:
         total, modules = read_report(path)
     except FileNotFoundError as exc:
@@ -72,8 +87,8 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     print(f"coverage: {total} percent over {len(modules)} modules")
     failed = False
-    if total < PACKAGE_FLOOR:
-        print(f"coverage: the package is under the {PACKAGE_FLOOR} percent floor")
+    if total < floor:
+        print(f"coverage: the package is under the {floor} percent floor")
         failed = True
     for module in under_floor(modules):
         print(f"coverage: {module.path} is at {module.percent} percent")
