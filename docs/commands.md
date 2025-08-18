@@ -472,6 +472,13 @@ One account's statement for a season.
 - `--due` The day the bill was due.
 - `--format` How to print it.
 
+## headgate report balance
+
+The water balance month by month, headgate down to the fields.
+
+- `--year` (required) Season to balance.
+- `--expected-loss` Share of the headgate the ditch keeps, default off the loss rates.
+
 ## headgate report board
 
 The packet the board reads before it adopts a season.

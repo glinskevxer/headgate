@@ -650,3 +650,36 @@ def test_too_few_usable_years_stops_the_study(district: Path) -> None:
     code, output = run(district, ["report", "hcu", "--turnout", "L2-14", "--years", "2025-2025"])
     assert code != 0
     assert "usable" in output
+
+
+def test_the_balance_report_cuts_the_season_into_months(district: Path) -> None:
+    code, output = run(district, ["report", "balance", "--year", "2025"])
+    assert code == 0
+    assert "unexplained" in output
+    assert "carriage" in output
+
+
+def test_the_expected_loss_can_be_given_by_hand(district: Path) -> None:
+    code, output = run(district, ["report", "balance", "--year", "2025", "--expected-loss", "0.9"])
+    assert code == 0
+    assert "every month is inside" in output
+
+
+def test_a_low_expected_loss_shows_the_months_out_of_balance(district: Path) -> None:
+    code, output = run(district, ["report", "balance", "--year", "2025", "--expected-loss", "0.01"])
+    assert code == 0
+    assert "nobody can account for" in output
+
+
+def test_the_balance_needs_a_declared_season(district: Path) -> None:
+    code, output = run(district, ["report", "balance", "--year", "2024"])
+    assert code != 0
+    assert "no season" in output
+
+
+def test_a_second_season_balances_on_its_own(district: Path) -> None:
+    second_season(district)
+    code, output = run(district, ["report", "balance", "--year", "2026"])
+    assert code == 0
+    assert "2026" in output
+    assert "headgate" in output

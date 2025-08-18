@@ -17,11 +17,13 @@ from ..analysis.compare import SeasonTotals, compare
 from ..analysis.efficiency import review as duty_review
 from ..audit.journal import EntryKind
 from ..carriage.apportion import LossPolicy, apportion, measured_loss
+from ..carriage.apportion import expected_loss as expected_loss_af
 from ..cli.render import Align, Column, as_json, field_list, rate, render_table, volume
 from ..duty.hcu import analyse
 from ..errors import NotFoundError, PolicyError
 from ..ids import AccountNumber, DecreeNumber, TurnoutCode
 from ..model.device import Device
+from ..report.balance import build as build_balance
 from ..report.board import build as build_packet
 from ..report.commissioner import build_day
 from ..report.exceptions import build as build_exceptions
@@ -218,6 +220,49 @@ def _season_totals(connection: sqlite3.Connection, water_year: int) -> SeasonTot
         delivered_af=picture.ledger.total_af,
         by_turnout=picture.volumes,
     )
+
+
+@report.command("balance")
+@click.option("--year", "water_year", required=True, type=int, help="Season to balance.")
+@click.option(
+    "--expected-loss",
+    default=None,
+    help="Share of the headgate the ditch keeps, default off the loss rates.",
+)
+@click.pass_obj
+def balance(context: Context, water_year: int, expected_loss: str | None) -> None:
+    """The water balance month by month, headgate down to the fields."""
+
+    with context.open_current() as connection:
+        picture = season_picture(connection, water_year)
+        if expected_loss is not None:
+            fraction = Decimal(expected_loss)
+        elif picture.headgate.total_af > 0:
+            fraction = (
+                expected_loss_af(picture.system, picture.volumes) / picture.headgate.total_af
+            ).quantize(Decimal("0.001"))
+        else:
+            fraction = Decimal("0")
+        built = build_balance(water_year, picture.headgate, picture.ledger, fraction)
+    click.echo(field_list(built.summary()))
+    click.echo()
+    columns = [
+        Column("month", Align.RIGHT),
+        Column("headgate", Align.RIGHT),
+        Column("delivered", Align.RIGHT),
+        Column("loss", Align.RIGHT),
+        Column("expected", Align.RIGHT),
+        Column("unexplained", Align.RIGHT),
+        Column("carriage", Align.RIGHT),
+    ]
+    click.echo(render_table(columns, built.rows()))
+    if not built.out_of_balance:
+        click.echo("\nevery month is inside what the loss rates account for")
+        return
+    for month in built.out_of_balance:
+        click.echo(
+            f"\nmonth {month.month} lost {month.unexplained_af} acre feet nobody can account for"
+        )
 
 
 @report.command("gaps")
