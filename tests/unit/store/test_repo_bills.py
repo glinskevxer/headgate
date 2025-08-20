@@ -108,12 +108,24 @@ def test_a_year_with_no_run_is_reported_missing(book: sqlite3.Connection) -> Non
         load_run(book, 2025)
 
 
-def test_a_reversing_bill_is_left_out_of_the_run(book: sqlite3.Connection) -> None:
+def test_only_the_bill_that_stands_is_in_the_run(book: sqlite3.Connection) -> None:
     stocked(book)
     number = save_bill(book, bill())
     save_bill(book, reverse(bill(), date(2026, 1, 15), "weir read high"), reverses=number)
+    save_bill(book, bill(delivered="40"))
     loaded = load_run(book, 2025)
     assert len(loaded.bills) == 1
+    assert loaded.bills[0].total == bill(delivered="40").total
+
+
+def test_a_season_whose_only_bill_was_reversed_has_no_run(
+    book: sqlite3.Connection,
+) -> None:
+    stocked(book)
+    number = save_bill(book, bill())
+    save_bill(book, reverse(bill(), date(2026, 1, 15), "weir read high"), reverses=number)
+    with pytest.raises(NotFoundError, match="no bill run"):
+        load_run(book, 2025)
 
 
 def test_an_account_history_carries_every_bill(book: sqlite3.Connection) -> None:

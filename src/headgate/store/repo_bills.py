@@ -117,10 +117,21 @@ def save_run(connection: sqlite3.Connection, run: BillRun, note: str = "") -> tu
 
 
 def load_run(connection: sqlite3.Connection, water_year: int) -> BillRun:
+    """The bills that stand for a season, which is not all of the bills.
+
+    A restated season leaves three documents against one account: the original,
+    a reversal pointing at it, and the replacement. Only the replacement stands.
+    So a bill that is a reversal is left out, and so is a bill that some
+    reversal points at, which leaves exactly one bill an account.
+    """
+
     rows = query(
         connection,
         f"SELECT {BILL_COLUMNS} FROM assessment_bill WHERE water_year = ?"
-        " AND reverses_bill_id IS NULL ORDER BY account_number",
+        " AND reverses_bill_id IS NULL"
+        " AND bill_id NOT IN (SELECT reverses_bill_id FROM assessment_bill"
+        " WHERE reverses_bill_id IS NOT NULL)"
+        " ORDER BY account_number",
         (water_year,),
     )
     if not rows:

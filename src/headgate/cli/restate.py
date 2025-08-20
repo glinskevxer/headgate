@@ -25,6 +25,7 @@ from ..errors import PolicyError
 from ..ids import AccountNumber, DeviceTag
 from ..measure.recalibration import Rerating, material, restate
 from ..store.assemble import turnout_owners
+from ..store.db import one
 from ..store.repo_bills import bills_for_account, save_bill
 from ..store.repo_devices import load_device
 from ..store.repo_journal import post
@@ -166,6 +167,23 @@ def _original_bill(connection: sqlite3.Connection, account: AccountNumber, water
     if not bills:
         raise PolicyError(f"account {account} was never billed for {water_year}")
     return bills[0]
+
+
+def _bill_number(connection: sqlite3.Connection, account: AccountNumber, water_year: int) -> int:
+    """The number of the bill that stands, which the reversal has to point at."""
+
+    row = one(
+        connection,
+        "SELECT bill_id FROM assessment_bill WHERE account_number = ? AND water_year = ?"
+        " AND reverses_bill_id IS NULL"
+        " AND bill_id NOT IN (SELECT reverses_bill_id FROM assessment_bill"
+        " WHERE reverses_bill_id IS NOT NULL)"
+        " ORDER BY bill_id DESC LIMIT 1",
+        (account.number, water_year),
+    )
+    if row is None:
+        raise PolicyError(f"account {account} has no standing bill for {water_year}")
+    return int(row["bill_id"])
 
 
 def _quantity_on(bill: Bill, kind: ChargeKind) -> Decimal:
