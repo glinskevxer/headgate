@@ -65,6 +65,27 @@ def report() -> None:
     """Print what the book says."""
 
 
+def show(
+    summary: list[tuple[str, str]],
+    columns: list[Column],
+    rows: list[list[str]],
+    output: str = "text",
+) -> None:
+    """Print a report as a block and a table, or as json.
+
+    Every report printed the same three lines and they drifted: one of them
+    printed the table before the summary and two of them could not be asked for
+    json at all. They all come through here now.
+    """
+
+    if output == "json":
+        click.echo(as_json(summary, columns, rows))
+        return
+    click.echo(field_list(summary))
+    click.echo()
+    click.echo(render_table(columns, rows))
+
+
 @report.command("season")
 @click.argument("water_year", type=int)
 @click.option(
@@ -107,12 +128,7 @@ def season_report(context: Context, water_year: int, output: str, loss_policy: s
             Column("charged", Align.RIGHT),
             Column("gap hours", Align.RIGHT),
         ]
-        if output == "json":
-            click.echo(as_json(built.summary(), columns, built.rows()))
-            return
-        click.echo(field_list(built.summary()))
-        click.echo()
-        click.echo(render_table(columns, built.rows()))
+        show(built.summary(), columns, built.rows(), output)
 
 
 @report.command("turnout")
@@ -244,8 +260,6 @@ def balance(context: Context, water_year: int, expected_loss: str | None) -> Non
         else:
             fraction = Decimal("0")
         built = build_balance(water_year, picture.headgate, picture.ledger, fraction)
-    click.echo(field_list(built.summary()))
-    click.echo()
     columns = [
         Column("month", Align.RIGHT),
         Column("headgate", Align.RIGHT),
@@ -255,7 +269,7 @@ def balance(context: Context, water_year: int, expected_loss: str | None) -> Non
         Column("unexplained", Align.RIGHT),
         Column("carriage", Align.RIGHT),
     ]
-    click.echo(render_table(columns, built.rows()))
+    show(built.summary(), columns, built.rows())
     if not built.out_of_balance:
         click.echo("\nevery month is inside what the loss rates account for")
         return
@@ -310,8 +324,6 @@ def day_report(context: Context, day: str, flow: str, taking: tuple[str, ...]) -
             load_curtailments(connection),
             Decimal(flow),
         )
-    click.echo(field_list(built.summary()))
-    click.echo()
     columns = [
         Column("decree"),
         Column("owner"),
@@ -321,7 +333,7 @@ def day_report(context: Context, day: str, flow: str, taking: tuple[str, ...]) -
         Column("over", Align.RIGHT),
         Column("curtailed"),
     ]
-    click.echo(render_table(columns, built.rows()))
+    show(built.summary(), columns, built.rows())
     if not built.in_compliance:
         click.echo(f"\n{len(built.over_diverting)} rights are over what they are allowed")
 
@@ -382,12 +394,7 @@ def account_report(
         Column("loss", Align.RIGHT),
         Column("charged", Align.RIGHT),
     ]
-    if output == "json":
-        click.echo(as_json(statement.summary(), columns, statement.rows()))
-        return
-    click.echo(field_list(statement.summary()))
-    click.echo()
-    click.echo(render_table(columns, statement.rows()))
+    show(statement.summary(), columns, statement.rows(), output)
 
 
 @report.command("journal")
@@ -422,8 +429,6 @@ def journal(
     if built.is_empty:
         click.echo("nothing in the journal answers that")
         return
-    click.echo(field_list(built.summary()))
-    click.echo()
     columns = [
         Column("entry", Align.RIGHT),
         Column("day"),
@@ -433,7 +438,7 @@ def journal(
         Column("money", Align.RIGHT),
         Column("note"),
     ]
-    click.echo(render_table(columns, built.rows()))
+    show(built.summary(), columns, built.rows())
 
 
 @report.command("hcu")
@@ -620,8 +625,6 @@ def runsheet(context: Context, day: str, moment: str | None, from_rotation: bool
     if sheet.is_empty:
         click.echo(f"nothing to set on {when}")
         return
-    click.echo(field_list(sheet.summary()))
-    click.echo()
     columns = [
         Column("turnout"),
         Column("rate", Align.RIGHT),
@@ -629,7 +632,7 @@ def runsheet(context: Context, day: str, moment: str | None, from_rotation: bool
         Column("staff", Align.RIGHT),
         Column("note"),
     ]
-    click.echo(render_table(columns, sheet.rows()))
+    show(sheet.summary(), columns, sheet.rows())
     for point in sheet.unsettable:
         click.echo(f"\n{point.describe()}")
 

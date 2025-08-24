@@ -683,3 +683,51 @@ def test_a_second_season_balances_on_its_own(district: Path) -> None:
     assert code == 0
     assert "2026" in output
     assert "headgate" in output
+
+
+def test_the_duty_report_can_be_asked_for_json_through_the_helper() -> None:
+    import json
+
+    from headgate.cli.render import Align, Column
+    from headgate.cli.reports import show
+
+    columns = [Column("turnout"), Column("acres", Align.RIGHT)]
+    printed: list[str] = []
+
+    class Echo:
+        def __call__(self, text: str = "") -> None:
+            printed.append(text)
+
+    import click
+
+    original = click.echo
+    click.echo = Echo()  # type: ignore[assignment]
+    try:
+        show([("water year", "2025")], columns, [["L2-14", "40"]], "json")
+    finally:
+        click.echo = original
+    found = json.loads(printed[0])
+    assert found["summary"]["water year"] == "2025"
+    assert found["rows"][0]["turnout"] == "L2-14"
+
+
+def test_the_helper_prints_a_block_and_a_table_by_default() -> None:
+    from headgate.cli.render import Column
+    from headgate.cli.reports import show
+
+    printed: list[str] = []
+
+    class Echo:
+        def __call__(self, text: str = "") -> None:
+            printed.append(text)
+
+    import click
+
+    original = click.echo
+    click.echo = Echo()  # type: ignore[assignment]
+    try:
+        show([("water year", "2025")], [Column("turnout")], [["L2-14"]])
+    finally:
+        click.echo = original
+    assert "water year" in printed[0]
+    assert "turnout" in printed[2]
