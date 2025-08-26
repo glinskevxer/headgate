@@ -41,6 +41,27 @@ been reading high does not get its record edited: the season is restated, the
 old bill is reversed, a new one is issued, and all three sit in the file with
 the arithmetic between them.
 
+## What is in it
+
+    headgate ditch      the canal, its laterals and the turnouts on them
+    headgate stream     the creek, reach by reach
+    headgate right      the decrees and the ladder they are administered in
+    headgate account    shareholders, certificates, parcels and payments
+    headgate device     structures, their ratings and their calibrations
+    headgate reading    staff readings, a rider's file, a datalogger's file
+    headgate order      taking orders, answering them, cutting a short day
+    headgate call       placing a call, serving notices, lifting them
+    headgate rotation   taking turns when there is not enough to go round
+    headgate allotment  what a share is worth in a rationed year
+    headgate reservoir  the pool, the storage accounts and the carryover
+    headgate lease      moving this year's water between shareholders
+    headgate transfer   moving a right for good, on terms
+    headgate well       supplemental wells and what they take out of the creek
+    headgate gage       the gaging record on the creek
+    headgate season     declaring it, rating it, closing it, restating it
+    headgate report     everything the office and the board read
+    headgate check      what is wrong with the book, before somebody finds out
+
 ## Units
 
 Volumes are acre feet and rates are cubic feet per second, both carried as

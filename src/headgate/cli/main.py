@@ -13,6 +13,7 @@ import click
 
 from .. import __version__
 from ..errors import HeadgateError
+from ..store.maintenance import table_sizes
 from ..store.migrations import current_version, describe, latest_available, migrate, pending
 from ..store.repo_log import Outcome, record
 from ..units import MinersInchStandard
@@ -32,6 +33,7 @@ from . import storage as storage_commands
 from . import transfers as transfer_commands
 from . import wells as well_commands
 from .context import DEFAULT_BOOK, Context, district_name
+from .render import field_list
 
 STANDARD_NAMES = [item.name.lower() for item in MinersInchStandard]
 
@@ -178,9 +180,25 @@ def status(context: Context) -> None:
             click.echo(f"{context.database.path} has never been set up")
             return
         name = district_name(connection)
-        click.echo(f"district: {name if name is not None else 'not written yet'}")
-        click.echo(f"schema:   {describe(connection)}")
-        click.echo(f"pending:  {len(pending(connection))}")
+        counts = table_sizes(connection)
+        click.echo(
+            field_list(
+                [
+                    ("district", name if name is not None else "not written yet"),
+                    ("book", str(context.database.path)),
+                    ("schema", describe(connection)),
+                    ("pending", str(len(pending(connection)))),
+                    ("ditches", str(counts.get("ditch", 0))),
+                    ("turnouts", str(counts.get("turnout", 0))),
+                    ("accounts", str(counts.get("account", 0))),
+                    ("devices", str(counts.get("device", 0))),
+                    ("readings", str(counts.get("reading", 0))),
+                    ("orders", str(counts.get("water_order", 0))),
+                    ("bills", str(counts.get("assessment_bill", 0))),
+                    ("journal", str(counts.get("journal_entry", 0))),
+                ]
+            )
+        )
 
 
 order_commands.register(main)

@@ -338,7 +338,7 @@ def district(tmp_path: Path) -> Path:
 def test_the_district_reports_itself_after_it_is_built(district: Path) -> None:
     output = must(district, ["status"])
     assert "Sanpete Ditch Company" in output
-    assert "pending:  0" in output
+    assert "pending   0" in output
 
 
 def test_the_season_report_runs_end_to_end(district: Path) -> None:
