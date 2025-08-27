@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import pytest
 from click.testing import CliRunner
 
 from headgate import __version__
@@ -143,3 +144,46 @@ def test_status_counts_the_journal_and_the_bills(tmp_path: Path) -> None:
     assert code == 0
     assert "journal   0" in output
     assert "bills     0" in output
+
+
+def test_the_entry_point_turns_a_refusal_into_an_exit_status(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from headgate.cli.main import run as entry_point
+
+    book = tmp_path / "nothing.sqlite3"
+    monkeypatch.setattr("sys.argv", ["headgate", "--book", str(book), "order", "list"])
+    assert entry_point() == 1
+
+
+def test_the_entry_point_comes_back_clean_on_a_good_command(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from headgate.cli.main import run as entry_point
+
+    book = tmp_path / "district.sqlite3"
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "headgate",
+            "--book",
+            str(book),
+            "init",
+            "--name",
+            "Sanpete",
+            "--state",
+            "ut",
+            "--stream",
+            "Sanpete Creek",
+        ],
+    )
+    assert entry_point() == 0
+    assert book.exists()
+
+
+def test_migrating_a_book_that_is_behind_brings_it_up(tmp_path: Path) -> None:
+    book = tmp_path / "district.sqlite3"
+    run(["init", "--name", "Sanpete", "--state", "ut", "--stream", "Sanpete Creek"], book)
+    code, output = run(["migrate-book"], book)
+    assert code == 0
+    assert "already at version" in output

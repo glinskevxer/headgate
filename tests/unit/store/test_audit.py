@@ -223,3 +223,38 @@ def test_the_subjects_that_are_codes_can_be_picked_out(book: sqlite3.Connection)
     found = audit(book, date(2027, 6, 1))
     assert device_tags_in_findings(found)
     assert turnout_codes_in_findings(found) == ()
+
+
+def test_a_device_installed_at_a_turnout_that_is_gone_is_found(
+    book: sqlite3.Connection,
+) -> None:
+    tidy(book)
+    with foreign_keys_off(book):
+        save_system(
+            book,
+            system((Turnout(SECOND, "Tail gate", Decimal("9000"), Decimal("4"), Decimal("25")),)),
+        )
+    found = audit(book, TODAY)
+    assert any(item.check == "device_off_the_system" for item in found)
+
+
+def test_water_ordered_at_a_turnout_that_is_gone_is_counted(
+    book: sqlite3.Connection,
+) -> None:
+    from headgate.store.audit import unchecked_volume
+
+    tidy(book)
+    assert unchecked_volume(book) == Decimal("0")
+    with foreign_keys_off(book):
+        book.execute(
+            "INSERT INTO water_order (order_id, account_number, turnout_code, requested_cfs,"
+            " run_from, run_to, placed_at, status, allowed_cfs)"
+            " VALUES (1, 118, 'L2-99', '3', '2025-07-01 06:00:00', '2025-07-08 06:00:00',"
+            " '2025-06-28 08:00:00', 'accepted', '3')"
+        )
+    assert unchecked_volume(book) > Decimal("0")
+
+
+def test_a_problem_stops_the_season_and_a_warning_does_not() -> None:
+    assert Severity.PROBLEM.stops_the_season
+    assert not Severity.WARNING.stops_the_season

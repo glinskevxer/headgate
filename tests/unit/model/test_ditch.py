@@ -183,3 +183,72 @@ def test_a_ditch_finds_its_own_turnout() -> None:
     assert system().main.turnout(TurnoutCode("MAIN-3")).name == "MAIN-3 headgate"
     with pytest.raises(NotFoundError):
         system().main.turnout(TurnoutCode("MAIN-9"))
+
+
+def test_a_ditch_that_runs_into_itself_is_refused() -> None:
+    first = Ditch(
+        code=DitchCode("L1"),
+        name="First Lateral",
+        capacity_cfs=Decimal("10"),
+        length_feet=Decimal("5280"),
+        loss_fraction_per_mile=Decimal("0.03"),
+        parent=DitchCode("L2"),
+        offtake_station_feet=Decimal("100"),
+    )
+    second = Ditch(
+        code=DitchCode("L2"),
+        name="Second Lateral",
+        capacity_cfs=Decimal("10"),
+        length_feet=Decimal("5280"),
+        loss_fraction_per_mile=Decimal("0.03"),
+        parent=DitchCode("L1"),
+        offtake_station_feet=Decimal("100"),
+    )
+    with pytest.raises(ValidationError, match="runs into itself"):
+        DitchSystem(ditches=(system().main, first, second))
+
+
+def test_a_system_with_no_ditches_is_not_a_system() -> None:
+    with pytest.raises(ValidationError, match="not a ditch system"):
+        DitchSystem(ditches=())
+
+
+def test_a_ditch_listed_twice_is_refused() -> None:
+    main = system().main
+    with pytest.raises(ValidationError, match="listed twice"):
+        DitchSystem(ditches=(main, main))
+
+
+def test_a_turnout_listed_on_two_ditches_is_refused() -> None:
+    twin = Ditch(
+        code=DitchCode("MAIN2"),
+        name="Old Main",
+        capacity_cfs=Decimal("10"),
+        length_feet=Decimal("5280"),
+        loss_fraction_per_mile=Decimal("0.03"),
+        turnouts=(turnout("MAIN2-3", "100"),),
+        parent=DitchCode("MAIN"),
+        offtake_station_feet=Decimal("100"),
+    )
+    doubled = replace(twin, turnouts=twin.turnouts)
+    with pytest.raises(ValidationError, match="listed twice"):
+        DitchSystem(ditches=(*system().ditches, twin, doubled))
+
+
+def test_a_ditch_that_is_not_there_is_reported_missing() -> None:
+    with pytest.raises(NotFoundError, match="no ditch"):
+        system().ditch(DitchCode("L9"))
+
+
+def test_a_lateral_off_a_lateral_is_walked_all_the_way_down() -> None:
+    path = system().path_to(TurnoutCode("S1-2"))
+    assert [ditch.code for ditch, _ in path] == [
+        DitchCode("MAIN"),
+        DitchCode("L2"),
+        DitchCode("S1"),
+    ]
+
+
+def test_a_ditch_reports_its_length_in_miles() -> None:
+    assert system().main.length_miles == Decimal("5")
+    assert system().main.is_main
