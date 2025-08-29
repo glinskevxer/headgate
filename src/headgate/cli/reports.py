@@ -646,8 +646,18 @@ def runsheet(context: Context, day: str, moment: str | None, from_rotation: bool
     show_default=True,
     help="Days ahead to chase a calibration about to lapse.",
 )
+@click.option(
+    "--format",
+    "output",
+    type=click.Choice(["text", "json"]),
+    default="text",
+    show_default=True,
+    help="How to print it.",
+)
 @click.pass_obj
-def exceptions(context: Context, water_year: int, as_of: str | None, lookahead: int) -> None:
+def exceptions(
+    context: Context, water_year: int, as_of: str | None, lookahead: int, output: str
+) -> None:
     """What wants doing this week, worst first."""
 
     day = parse_day(as_of) if as_of is not None else date.today()
@@ -656,18 +666,26 @@ def exceptions(context: Context, water_year: int, as_of: str | None, lookahead: 
         built = build_exceptions(
             day, build_ledger(connection, span), load_devices(connection), lookahead
         )
-    if built.is_quiet:
-        click.echo(f"nothing wants doing on {day}")
-        return
     columns = [
         Column("when"),
         Column("subject"),
         Column("what"),
         Column("costs water"),
     ]
-    click.echo(render_table(columns, built.rows()))
-    click.echo()
-    click.echo(f"{len(built.now)} want doing now, {len(built.costing_water)} are costing water")
+    summary = [
+        ("day", day.isoformat()),
+        ("water year", str(water_year)),
+        ("wanting doing", str(len(built.exceptions))),
+        ("now", str(len(built.now))),
+        ("costing water", str(len(built.costing_water))),
+    ]
+    if output == "json":
+        show(summary, columns, built.rows(), output)
+        return
+    if built.is_quiet:
+        click.echo(f"nothing wants doing on {day}")
+        return
+    show(summary, columns, built.rows())
 
 
 @report.command("running")

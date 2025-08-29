@@ -411,7 +411,7 @@ def test_a_lapsed_calibration_shows_on_the_exception_report(district: Path) -> N
     code, output = run(district, ["report", "exceptions", "--year", "2025", "--on", "2026-06-01"])
     assert code == 0
     assert "no calibration stands" in output
-    assert "want doing now" in output
+    assert "now " in output
 
 
 def test_a_calibration_about_to_lapse_shows_with_a_lookahead(district: Path) -> None:
@@ -731,3 +731,34 @@ def test_the_helper_prints_a_block_and_a_table_by_default() -> None:
         click.echo = original
     assert "water year" in printed[0]
     assert "turnout" in printed[2]
+
+
+def test_the_exception_report_comes_out_as_json(district: Path) -> None:
+    import json
+
+    code, output = run(
+        district,
+        ["report", "exceptions", "--year", "2025", "--on", "2026-06-01", "--format", "json"],
+    )
+    assert code == 0
+    found = json.loads(output)
+    assert found["summary"]["water year"] == "2025"
+    assert found["columns"][0] == "when"
+
+
+def test_a_quiet_week_still_answers_in_json(district: Path) -> None:
+    import json
+
+    code, output = run(
+        district,
+        ["report", "exceptions", "--year", "2025", "--on", "2025-04-15", "--format", "json"],
+    )
+    assert code == 0
+    found = json.loads(output)
+    assert "wanting doing" in found["summary"]
+
+
+def test_the_text_form_still_says_nothing_wants_doing(district: Path) -> None:
+    code, output = run(district, ["report", "exceptions", "--year", "2025", "--on", "2025-04-15"])
+    assert code == 0
+    assert "unaccounted for" in output or "nothing wants doing" in output

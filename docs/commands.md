@@ -517,6 +517,7 @@ What wants doing this week, worst first.
 - `--year` (required) Season to look at.
 - `--on` The day to report, default today.
 - `--lookahead` Days ahead to chase a calibration about to lapse.
+- `--format` How to print it.
 
 ## headgate report gaps
 
