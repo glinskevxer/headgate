@@ -15,13 +15,11 @@ from pathlib import Path
 import click
 
 from ..cli.main import main
+from .generated import COMMAND_REFERENCE
 
-REFERENCE = Path("docs/commands.md")
+REFERENCE = COMMAND_REFERENCE.path
 HEADING = "# headgate commands"
-PREAMBLE = (
-    "This file is generated from the command line by"
-    " `python -m headgate.tools.build_docs`. Do not edit it by hand."
-)
+PREAMBLE = COMMAND_REFERENCE.preamble
 
 
 def _walk(command: click.Command, path: list[str]) -> list[tuple[list[str], click.Command]]:

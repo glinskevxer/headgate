@@ -19,13 +19,11 @@ from pathlib import Path
 
 from ..store.db import Database, query
 from ..store.migrations import migrate
+from .generated import SCHEMA_REFERENCE
 
-REFERENCE = Path("docs/schema.md")
+REFERENCE = SCHEMA_REFERENCE.path
 HEADING = "# headgate schema"
-PREAMBLE = (
-    "This file is generated from the migrations by"
-    " `python -m headgate.tools.schema_dump`. Do not edit it by hand."
-)
+PREAMBLE = SCHEMA_REFERENCE.preamble
 
 
 def _tables(connection: sqlite3.Connection) -> list[str]:

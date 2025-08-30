@@ -1,0 +1,9 @@
+# Normalise line endings, so a checkout on another machine does not rewrite
+# every file the first time somebody saves one.
+* text=auto eol=lf
+
+# Written by a program, checked in for readers. Marked so GitHub leaves them
+# out of the language statistics and a review shows them collapsed. The list
+# lives in src/headgate/tools/generated.py and a test holds the two together.
+docs/commands.md linguist-generated=true
+docs/schema.md linguist-generated=true
